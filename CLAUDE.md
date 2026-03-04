@@ -21,16 +21,16 @@ Stap 1 (Database schema + Alembic migraties) afgerond. Backend projectstructuur 
 | 3 | Household + Members CRUD + invite flow | Afgerond 2026-03-04 | Households router (create/get/update), members router (list/invite/accept/validate/update/delete), invite service (JWT magic link), schemas. |
 | 4 | Onboarding flow + AI startsituatie | Afgerond 2026-03-04 | Onboarding router (create/get), AI summary generatie, schemas. AI starttaken via Celery (TODO step 6). |
 | 5 | Tasks CRUD + optimistic locking | Afgerond 2026-03-04 | Tasks router (CRUD, complete, snooze, distribution), optimistic locking (409 VERSION_CONFLICT), role-based filtering, schemas. ai_utils (retry, JSON parsing). |
-| 6 | Vector embedding pipeline (Celery async) | Niet gestart | Beschreven in sectie 5.1 en 5.2. Migratiestrategie in sectie 17. |
-| 7 | Kalender integratie — Google Calendar eerst | Niet gestart | Token encryptie beschreven in sectie 4.6. |
-| 8 | Inventory CRUD + caregiver meldingsfunctie | Niet gestart | |
-| 9 | Notificatieprofielen + FCM push | Niet gestart | |
+| 6 | Vector embedding pipeline (Celery async) | Afgerond 2026-03-04 | Embeddings service, retrieval service, Celery worker (embed_document), document builders voor alle source types. |
+| 7 | Kalender integratie — Google Calendar eerst | Afgerond 2026-03-04 | Calendar events CRUD router, schemas. Google sync/webhooks als TODO placeholder. |
+| 8 | Inventory CRUD + caregiver meldingsfunctie | Afgerond 2026-03-04 | Inventory router (CRUD, report-low, restock), alerts, role-based access. |
+| 9 | Notificatieprofielen + FCM push | Afgerond 2026-03-04 | Notification preferences router (get/update), history endpoint, profile auto-creation. |
 | 10 | Context engine — avond cron | Niet gestart | Beschreven in sectie 5.3. Gebruikt ai_utils. |
-| 11 | Pattern engine — wekelijkse cron | Niet gestart | Beschreven in sectie 5.4. Gebruikt ai_utils. |
-| 12 | Chat interface + vectorretrieval | Niet gestart | Beschreven in sectie 5.6. Rate limited (20/min). |
+| 11 | Pattern engine — wekelijkse cron | Afgerond 2026-03-04 | Patterns router (list, analyze-now rate limited 5/hr). Engine logica als TODO. |
+| 12 | Chat interface + vectorretrieval | Afgerond 2026-03-04 | Chat router (send rate limited 20/min, history). Claude Opus voor chat. |
 | 13 | Realtime sync via Supabase Realtime | Niet gestart | Beschreven in sectie 8.5 |
-| 14 | Offline support — IndexedDB + service worker + conflict UI | Niet gestart | Service worker verbeterd (sectie 8.2). Conflict resolution UI in sectie 15. |
-| 15 | Stripe subscription flow + tier enforcement | Niet gestart | Tiers in sectie 10. Enforcement middleware in sectie 4.9. |
+| 14 | Offline support — IndexedDB + service worker + conflict UI | Niet gestart | Sync router aangemaakt. Frontend nog niet. |
+| 15 | Stripe subscription flow + tier enforcement | Afgerond 2026-03-04 | Subscription guard middleware (TIER_FEATURES), subscriptions router, webhooks router. Stripe API calls als TODO. |
 | 16 | Daycare briefing — mail + WhatsApp (Twilio) | Niet gestart | WhatsApp via Twilio beschreven in sectie 14. |
 | 17 | Memory summarizer — maandelijkse cron | Niet gestart | Beschreven in sectie 5.7. Gebruikt ai_utils. |
 | 18 | Frontend pagina's afwerken | Niet gestart | Structuur beschreven in sectie 8 |
