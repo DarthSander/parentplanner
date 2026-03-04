@@ -7,16 +7,16 @@
 Dit bestand is de enige bron van waarheid voor het GezinsAI project. Bij elke nieuwe sessie: lees dit bestand eerst volledig, check de statuslijst hieronder, en ga verder waar het project gebleven is. Werk de status bij zodra iets afgerond of gestart is.
 
 ### Laatste sessiedatum
-2026-03-01
+2026-03-04
 
 ### Huidige fase
-Concept en technische architectuur volledig uitgewerkt. Specificatie aangevuld met: error handling, rate limiting, health checks, token encryptie, Pydantic schemas, teststructuur, embedding migratiestrategie, CORS, deployment/infra, verbeterde service worker, invite flow, WhatsApp provider keuze, offline conflict resolution UI, en subscriptie-enforcement. Nog niets gebouwd.
+Stap 1 (Database schema + Alembic migraties) afgerond. Backend projectstructuur opgezet met alle SQLAlchemy models (17 tabellen), Alembic configuratie, en initiële migratie. Core modules (config, database) aangemaakt.
 
 ### Statuslijst ontwikkelvolgorde
 
 | # | Onderdeel | Status | Notities |
 |---|---|---|---|
-| 1 | Database schema + Alembic migraties | Niet gestart | Schema volledig uitgewerkt in sectie 3. HNSW index ipv IVFFlat. embedding_model kolom toegevoegd. |
+| 1 | Database schema + Alembic migraties | Afgerond 2026-03-04 | SQLAlchemy models (17 tabellen), Alembic config, initiële migratie 001. HNSW index, alle constraints, alle enums. |
 | 2 | Auth flow — Supabase, JWT middleware | Niet gestart | |
 | 3 | Household + Members CRUD + invite flow | Niet gestart | Magic link invite beschreven in sectie 4.10 |
 | 4 | Onboarding flow + AI startsituatie | Niet gestart | Flow beschreven in sectie 9. AI calls gebruiken ai_utils met retry. |
@@ -55,6 +55,7 @@ Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Dep
 |---|---|
 | 2026-02-28 | Volledig concept uitgewerkt. Architectuur, datamodel, AI-engine, frontend structuur, SQL schema, API endpoints, subscriptiemodel, GDPR — alles bepaald. Niets gebouwd. |
 | 2026-03-01 | Specificatie aangevuld met 15 ontbrekende onderdelen: error handling + retry bij AI-calls, rate limiting, health/monitoring, token encryptie, Pydantic schemas, teststructuur, embedding migratiestrategie, HNSW ipv IVFFlat, CORS configuratie, deployment/infra, verbeterde service worker, invite flow, WhatsApp provider keuze (Twilio), offline conflict resolution, subscriptie-enforcement middleware. |
+| 2026-03-04 | Stap 1 afgerond: Backend projectstructuur opgezet. Alle 17 SQLAlchemy models aangemaakt (households, members, onboarding_answers, tasks, task_completions, calendar_events, calendar_integrations, inventory_items, inventory_alerts, patterns, notification_profiles, notification_log, chat_messages, vector_documents, subscriptions, daycare_contacts, sync_queue). Alembic geconfigureerd met async support. Initiële migratie 001_initial_schema.py geschreven met alle tabellen, enums, indexes, check constraints, HNSW vector index. Core modules: config.py (pydantic-settings), database.py (async sessionmaker). |
 
 ---
 
