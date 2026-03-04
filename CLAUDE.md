@@ -19,8 +19,8 @@ Stap 1 (Database schema + Alembic migraties) afgerond. Backend projectstructuur 
 | 1 | Database schema + Alembic migraties | Afgerond 2026-03-04 | SQLAlchemy models (17 tabellen), Alembic config, initiële migratie 001. HNSW index, alle constraints, alle enums. |
 | 2 | Auth flow — Supabase, JWT middleware | Afgerond 2026-03-04 | JWT verificatie (HS256), Supabase Auth proxy (register/login/refresh), rate limiting, CORS, health endpoints, dependencies (get_current_member), main.py. |
 | 3 | Household + Members CRUD + invite flow | Afgerond 2026-03-04 | Households router (create/get/update), members router (list/invite/accept/validate/update/delete), invite service (JWT magic link), schemas. |
-| 4 | Onboarding flow + AI startsituatie | Niet gestart | Flow beschreven in sectie 9. AI calls gebruiken ai_utils met retry. |
-| 5 | Tasks CRUD + optimistic locking | Niet gestart | Locking logica beschreven in sectie 4.2. Pydantic schemas in sectie 4.5. |
+| 4 | Onboarding flow + AI startsituatie | Afgerond 2026-03-04 | Onboarding router (create/get), AI summary generatie, schemas. AI starttaken via Celery (TODO step 6). |
+| 5 | Tasks CRUD + optimistic locking | Afgerond 2026-03-04 | Tasks router (CRUD, complete, snooze, distribution), optimistic locking (409 VERSION_CONFLICT), role-based filtering, schemas. ai_utils (retry, JSON parsing). |
 | 6 | Vector embedding pipeline (Celery async) | Niet gestart | Beschreven in sectie 5.1 en 5.2. Migratiestrategie in sectie 17. |
 | 7 | Kalender integratie — Google Calendar eerst | Niet gestart | Token encryptie beschreven in sectie 4.6. |
 | 8 | Inventory CRUD + caregiver meldingsfunctie | Niet gestart | |

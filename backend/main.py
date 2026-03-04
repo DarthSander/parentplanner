@@ -32,9 +32,11 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Routers
-from routers import auth, health, households, members  # noqa: E402
+from routers import auth, health, households, members, onboarding, tasks  # noqa: E402
 
 app.include_router(health.router, tags=["health"])
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(households.router, prefix="/households", tags=["households"])
 app.include_router(members.router, prefix="/members", tags=["members"])
+app.include_router(onboarding.router, prefix="/onboarding", tags=["onboarding"])
+app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
