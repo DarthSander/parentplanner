@@ -17,7 +17,7 @@ Stap 1 (Database schema + Alembic migraties) afgerond. Backend projectstructuur 
 | # | Onderdeel | Status | Notities |
 |---|---|---|---|
 | 1 | Database schema + Alembic migraties | Afgerond 2026-03-04 | SQLAlchemy models (17 tabellen), Alembic config, initiële migratie 001. HNSW index, alle constraints, alle enums. |
-| 2 | Auth flow — Supabase, JWT middleware | Niet gestart | |
+| 2 | Auth flow — Supabase, JWT middleware | Afgerond 2026-03-04 | JWT verificatie (HS256), Supabase Auth proxy (register/login/refresh), rate limiting, CORS, health endpoints, dependencies (get_current_member), main.py. |
 | 3 | Household + Members CRUD + invite flow | Niet gestart | Magic link invite beschreven in sectie 4.10 |
 | 4 | Onboarding flow + AI startsituatie | Niet gestart | Flow beschreven in sectie 9. AI calls gebruiken ai_utils met retry. |
 | 5 | Tasks CRUD + optimistic locking | Niet gestart | Locking logica beschreven in sectie 4.2. Pydantic schemas in sectie 4.5. |
@@ -55,7 +55,7 @@ Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Dep
 |---|---|
 | 2026-02-28 | Volledig concept uitgewerkt. Architectuur, datamodel, AI-engine, frontend structuur, SQL schema, API endpoints, subscriptiemodel, GDPR — alles bepaald. Niets gebouwd. |
 | 2026-03-01 | Specificatie aangevuld met 15 ontbrekende onderdelen: error handling + retry bij AI-calls, rate limiting, health/monitoring, token encryptie, Pydantic schemas, teststructuur, embedding migratiestrategie, HNSW ipv IVFFlat, CORS configuratie, deployment/infra, verbeterde service worker, invite flow, WhatsApp provider keuze (Twilio), offline conflict resolution, subscriptie-enforcement middleware. |
-| 2026-03-04 | Stap 1 afgerond: Backend projectstructuur opgezet. Alle 17 SQLAlchemy models aangemaakt (households, members, onboarding_answers, tasks, task_completions, calendar_events, calendar_integrations, inventory_items, inventory_alerts, patterns, notification_profiles, notification_log, chat_messages, vector_documents, subscriptions, daycare_contacts, sync_queue). Alembic geconfigureerd met async support. Initiële migratie 001_initial_schema.py geschreven met alle tabellen, enums, indexes, check constraints, HNSW vector index. Core modules: config.py (pydantic-settings), database.py (async sessionmaker). |
+| 2026-03-04 | Stap 1 afgerond: Backend projectstructuur opgezet. Alle 17 SQLAlchemy models, Alembic config, initiële migratie 001. Stap 2 afgerond: Auth flow — security.py (JWT HS256 verificatie via Supabase), dependencies.py (get_current_member, require_owner), encryption.py (Fernet), rate_limiter.py (SlowAPI + Redis), logging_config.py (JSON structured logging), auth router (register/login/refresh via Supabase Auth proxy, rate limited 10/min), health router (liveness + readiness), main.py (FastAPI app met CORS, rate limiting, Sentry, routers), schemas/auth.py. |
 
 ---
 
