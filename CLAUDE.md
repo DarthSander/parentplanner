@@ -36,11 +36,11 @@ Stap 1 (Database schema + Alembic migraties) afgerond. Backend projectstructuur 
 | 18 | Frontend pagina's afwerken | Niet gestart | Structuur beschreven in sectie 8 |
 | 19 | GDPR export en verwijdering endpoints | Niet gestart | Eisen beschreven in sectie 11 |
 | 20 | PWA configuratie + manifest | Niet gestart | Beschreven in sectie 8.6 |
-| 21 | Docker + CI/CD + deployment | Niet gestart | Beschreven in sectie 18. Railway + Vercel. |
+| 21 | Docker + CI/CD + deployment | Niet gestart | Beschreven in sectie 18. Render (backend) + Vercel (frontend). render.yaml aangemaakt. |
 | 22 | Monitoring (Sentry + structured logging + health) | Niet gestart | Health check in sectie 4.8. Logging in sectie 4.8. Sentry in sectie 4.4. |
 
 ### Openstaande beslissingen
-Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Deployment: Railway (backend) + Vercel (frontend). Vector index: HNSW. AI model keuze: Sonnet voor achtergrondtaken, Opus voor chat.
+Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Deployment: Render (backend + workers) + Vercel (frontend). Vector index: HNSW. AI model keuze: Sonnet voor achtergrondtaken, Opus voor chat.
 
 ### Instructie voor nieuwe sessie
 1. Lees dit bestand volledig
@@ -3416,10 +3416,11 @@ services:
 
 ### Deployment platform keuze
 
-**Backend (FastAPI + Celery): Railway**
-- Reden: native Docker support, makkelijke Redis add-on, betaalbaar, goede DX
-- Drie services: API, Celery worker, Celery beat
+**Backend (FastAPI + Celery): Render**
+- Reden: native Docker support, gratis Redis add-on, Infrastructure as Code via render.yaml, goede DX
+- Drie services: API (web service), Celery worker (background worker), Celery beat (cron worker)
 - Auto-deploy vanuit GitHub main branch
+- Health check op /health endpoint
 
 **Frontend (Next.js): Vercel**
 - Reden: native Next.js support, edge functions, automatische preview deploys
@@ -3428,10 +3429,9 @@ services:
 **Database: Supabase (EU — Frankfurt)**
 - Reden: al gekozen voor Auth en Realtime, pgvector support, GDPR-compliant EU hosting
 
-**Alternatief als alles op een platform moet: Fly.io**
-- Kan zowel frontend als backend hosten
-- Machines API voor Celery workers
-- Nadeel: meer configuratie nodig dan Railway + Vercel combo
+**Redis: Render Redis**
+- Gratis tier beschikbaar (25MB), voldoende voor rate limiting + Celery broker
+- Upgrade naar betaald plan bij productie
 
 ### CI/CD Pipeline
 
@@ -3493,17 +3493,8 @@ jobs:
         with:
           file: ./backend/coverage.xml
 
-  deploy-backend:
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to Railway
-        uses: bervProject/railway-deploy@main
-        with:
-          railway_token: ${{ secrets.RAILWAY_TOKEN }}
-          service: gezinsai-api
+  # Render deploys automatisch via render.yaml bij push naar main
+  # Geen aparte deploy job nodig — Render detecteert pushes zelf
 
   deploy-frontend:
     needs: test
@@ -3521,12 +3512,25 @@ jobs:
           working-directory: ./frontend
 ```
 
+### Render configuratie
+
+De backend wordt geconfigureerd via `render.yaml` (Infrastructure as Code). Render detecteert dit bestand automatisch en maakt de services aan. Zie `render.yaml` in de repository root.
+
+Services:
+- **gezinsai-api**: Web service (FastAPI), health check op /health
+- **gezinsai-worker**: Background worker (Celery)
+- **gezinsai-beat**: Background worker (Celery Beat)
+- **gezinsai-redis**: Redis instance voor rate limiting + Celery broker
+
 ### Vereiste secrets in GitHub
 
 ```
-RAILWAY_TOKEN          — Railway API token
 VERCEL_TOKEN           — Vercel deployment token
 VERCEL_ORG_ID          — Vercel organization ID
 VERCEL_PROJECT_ID      — Vercel project ID
 TEST_ENCRYPTION_KEY    — Fernet key voor test database
 ```
+
+### Vereiste environment variables in Render
+
+Alle variabelen uit sectie 12 moeten als environment variables in Render worden ingesteld. REDIS_URL wordt automatisch gelinkt vanuit de Redis service.
