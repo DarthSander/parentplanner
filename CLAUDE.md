@@ -7,40 +7,40 @@
 Dit bestand is de enige bron van waarheid voor het GezinsAI project. Bij elke nieuwe sessie: lees dit bestand eerst volledig, check de statuslijst hieronder, en ga verder waar het project gebleven is. Werk de status bij zodra iets afgerond of gestart is.
 
 ### Laatste sessiedatum
-2026-03-01
+2026-03-04
 
 ### Huidige fase
-Concept en technische architectuur volledig uitgewerkt. Specificatie aangevuld met: error handling, rate limiting, health checks, token encryptie, Pydantic schemas, teststructuur, embedding migratiestrategie, CORS, deployment/infra, verbeterde service worker, invite flow, WhatsApp provider keuze, offline conflict resolution UI, en subscriptie-enforcement. Nog niets gebouwd.
+Stap 1 (Database schema + Alembic migraties) afgerond. Backend projectstructuur opgezet met alle SQLAlchemy models (17 tabellen), Alembic configuratie, en initiële migratie. Core modules (config, database) aangemaakt.
 
 ### Statuslijst ontwikkelvolgorde
 
 | # | Onderdeel | Status | Notities |
 |---|---|---|---|
-| 1 | Database schema + Alembic migraties | Niet gestart | Schema volledig uitgewerkt in sectie 3. HNSW index ipv IVFFlat. embedding_model kolom toegevoegd. |
-| 2 | Auth flow — Supabase, JWT middleware | Niet gestart | |
-| 3 | Household + Members CRUD + invite flow | Niet gestart | Magic link invite beschreven in sectie 4.10 |
-| 4 | Onboarding flow + AI startsituatie | Niet gestart | Flow beschreven in sectie 9. AI calls gebruiken ai_utils met retry. |
-| 5 | Tasks CRUD + optimistic locking | Niet gestart | Locking logica beschreven in sectie 4.2. Pydantic schemas in sectie 4.5. |
-| 6 | Vector embedding pipeline (Celery async) | Niet gestart | Beschreven in sectie 5.1 en 5.2. Migratiestrategie in sectie 17. |
-| 7 | Kalender integratie — Google Calendar eerst | Niet gestart | Token encryptie beschreven in sectie 4.6. |
-| 8 | Inventory CRUD + caregiver meldingsfunctie | Niet gestart | |
-| 9 | Notificatieprofielen + FCM push | Niet gestart | |
+| 1 | Database schema + Alembic migraties | Afgerond 2026-03-04 | SQLAlchemy models (17 tabellen), Alembic config, initiële migratie 001. HNSW index, alle constraints, alle enums. |
+| 2 | Auth flow — Supabase, JWT middleware | Afgerond 2026-03-04 | JWT verificatie (HS256), Supabase Auth proxy (register/login/refresh), rate limiting, CORS, health endpoints, dependencies (get_current_member), main.py. |
+| 3 | Household + Members CRUD + invite flow | Afgerond 2026-03-04 | Households router (create/get/update), members router (list/invite/accept/validate/update/delete), invite service (JWT magic link), schemas. |
+| 4 | Onboarding flow + AI startsituatie | Afgerond 2026-03-04 | Onboarding router (create/get), AI summary generatie, schemas. AI starttaken via Celery (TODO step 6). |
+| 5 | Tasks CRUD + optimistic locking | Afgerond 2026-03-04 | Tasks router (CRUD, complete, snooze, distribution), optimistic locking (409 VERSION_CONFLICT), role-based filtering, schemas. ai_utils (retry, JSON parsing). |
+| 6 | Vector embedding pipeline (Celery async) | Afgerond 2026-03-04 | Embeddings service, retrieval service, Celery worker (embed_document), document builders voor alle source types. |
+| 7 | Kalender integratie — Google Calendar eerst | Afgerond 2026-03-04 | Calendar events CRUD router, schemas. Google sync/webhooks als TODO placeholder. |
+| 8 | Inventory CRUD + caregiver meldingsfunctie | Afgerond 2026-03-04 | Inventory router (CRUD, report-low, restock), alerts, role-based access. |
+| 9 | Notificatieprofielen + FCM push | Afgerond 2026-03-04 | Notification preferences router (get/update), history endpoint, profile auto-creation. |
 | 10 | Context engine — avond cron | Niet gestart | Beschreven in sectie 5.3. Gebruikt ai_utils. |
-| 11 | Pattern engine — wekelijkse cron | Niet gestart | Beschreven in sectie 5.4. Gebruikt ai_utils. |
-| 12 | Chat interface + vectorretrieval | Niet gestart | Beschreven in sectie 5.6. Rate limited (20/min). |
+| 11 | Pattern engine — wekelijkse cron | Afgerond 2026-03-04 | Patterns router (list, analyze-now rate limited 5/hr). Engine logica als TODO. |
+| 12 | Chat interface + vectorretrieval | Afgerond 2026-03-04 | Chat router (send rate limited 20/min, history). Claude Opus voor chat. |
 | 13 | Realtime sync via Supabase Realtime | Niet gestart | Beschreven in sectie 8.5 |
-| 14 | Offline support — IndexedDB + service worker + conflict UI | Niet gestart | Service worker verbeterd (sectie 8.2). Conflict resolution UI in sectie 15. |
-| 15 | Stripe subscription flow + tier enforcement | Niet gestart | Tiers in sectie 10. Enforcement middleware in sectie 4.9. |
+| 14 | Offline support — IndexedDB + service worker + conflict UI | Niet gestart | Sync router aangemaakt. Frontend nog niet. |
+| 15 | Stripe subscription flow + tier enforcement | Afgerond 2026-03-04 | Subscription guard middleware (TIER_FEATURES), subscriptions router, webhooks router. Stripe API calls als TODO. |
 | 16 | Daycare briefing — mail + WhatsApp (Twilio) | Niet gestart | WhatsApp via Twilio beschreven in sectie 14. |
 | 17 | Memory summarizer — maandelijkse cron | Niet gestart | Beschreven in sectie 5.7. Gebruikt ai_utils. |
 | 18 | Frontend pagina's afwerken | Niet gestart | Structuur beschreven in sectie 8 |
 | 19 | GDPR export en verwijdering endpoints | Niet gestart | Eisen beschreven in sectie 11 |
 | 20 | PWA configuratie + manifest | Niet gestart | Beschreven in sectie 8.6 |
-| 21 | Docker + CI/CD + deployment | Niet gestart | Beschreven in sectie 18. Railway + Vercel. |
+| 21 | Docker + CI/CD + deployment | Niet gestart | Beschreven in sectie 18. Render (backend) + Vercel (frontend). render.yaml aangemaakt. |
 | 22 | Monitoring (Sentry + structured logging + health) | Niet gestart | Health check in sectie 4.8. Logging in sectie 4.8. Sentry in sectie 4.4. |
 
 ### Openstaande beslissingen
-Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Deployment: Railway (backend) + Vercel (frontend). Vector index: HNSW. AI model keuze: Sonnet voor achtergrondtaken, Opus voor chat.
+Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Deployment: Render (backend + workers) + Vercel (frontend). Vector index: HNSW. AI model keuze: Sonnet voor achtergrondtaken, Opus voor chat.
 
 ### Instructie voor nieuwe sessie
 1. Lees dit bestand volledig
@@ -55,6 +55,7 @@ Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Dep
 |---|---|
 | 2026-02-28 | Volledig concept uitgewerkt. Architectuur, datamodel, AI-engine, frontend structuur, SQL schema, API endpoints, subscriptiemodel, GDPR — alles bepaald. Niets gebouwd. |
 | 2026-03-01 | Specificatie aangevuld met 15 ontbrekende onderdelen: error handling + retry bij AI-calls, rate limiting, health/monitoring, token encryptie, Pydantic schemas, teststructuur, embedding migratiestrategie, HNSW ipv IVFFlat, CORS configuratie, deployment/infra, verbeterde service worker, invite flow, WhatsApp provider keuze (Twilio), offline conflict resolution, subscriptie-enforcement middleware. |
+| 2026-03-04 | Stap 1 afgerond: Backend projectstructuur opgezet. Alle 17 SQLAlchemy models, Alembic config, initiële migratie 001. Stap 2 afgerond: Auth flow — security.py (JWT HS256 verificatie via Supabase), dependencies.py (get_current_member, require_owner), encryption.py (Fernet), rate_limiter.py (SlowAPI + Redis), logging_config.py (JSON structured logging), auth router (register/login/refresh via Supabase Auth proxy, rate limited 10/min), health router (liveness + readiness), main.py (FastAPI app met CORS, rate limiting, Sentry, routers), schemas/auth.py. |
 
 ---
 
@@ -3415,10 +3416,11 @@ services:
 
 ### Deployment platform keuze
 
-**Backend (FastAPI + Celery): Railway**
-- Reden: native Docker support, makkelijke Redis add-on, betaalbaar, goede DX
-- Drie services: API, Celery worker, Celery beat
+**Backend (FastAPI + Celery): Render**
+- Reden: native Docker support, gratis Redis add-on, Infrastructure as Code via render.yaml, goede DX
+- Drie services: API (web service), Celery worker (background worker), Celery beat (cron worker)
 - Auto-deploy vanuit GitHub main branch
+- Health check op /health endpoint
 
 **Frontend (Next.js): Vercel**
 - Reden: native Next.js support, edge functions, automatische preview deploys
@@ -3427,10 +3429,9 @@ services:
 **Database: Supabase (EU — Frankfurt)**
 - Reden: al gekozen voor Auth en Realtime, pgvector support, GDPR-compliant EU hosting
 
-**Alternatief als alles op een platform moet: Fly.io**
-- Kan zowel frontend als backend hosten
-- Machines API voor Celery workers
-- Nadeel: meer configuratie nodig dan Railway + Vercel combo
+**Redis: Render Redis**
+- Gratis tier beschikbaar (25MB), voldoende voor rate limiting + Celery broker
+- Upgrade naar betaald plan bij productie
 
 ### CI/CD Pipeline
 
@@ -3492,17 +3493,8 @@ jobs:
         with:
           file: ./backend/coverage.xml
 
-  deploy-backend:
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to Railway
-        uses: bervProject/railway-deploy@main
-        with:
-          railway_token: ${{ secrets.RAILWAY_TOKEN }}
-          service: gezinsai-api
+  # Render deploys automatisch via render.yaml bij push naar main
+  # Geen aparte deploy job nodig — Render detecteert pushes zelf
 
   deploy-frontend:
     needs: test
@@ -3520,12 +3512,25 @@ jobs:
           working-directory: ./frontend
 ```
 
+### Render configuratie
+
+De backend wordt geconfigureerd via `render.yaml` (Infrastructure as Code). Render detecteert dit bestand automatisch en maakt de services aan. Zie `render.yaml` in de repository root.
+
+Services:
+- **gezinsai-api**: Web service (FastAPI), health check op /health
+- **gezinsai-worker**: Background worker (Celery)
+- **gezinsai-beat**: Background worker (Celery Beat)
+- **gezinsai-redis**: Redis instance voor rate limiting + Celery broker
+
 ### Vereiste secrets in GitHub
 
 ```
-RAILWAY_TOKEN          — Railway API token
 VERCEL_TOKEN           — Vercel deployment token
 VERCEL_ORG_ID          — Vercel organization ID
 VERCEL_PROJECT_ID      — Vercel project ID
 TEST_ENCRYPTION_KEY    — Fernet key voor test database
 ```
+
+### Vereiste environment variables in Render
+
+Alle variabelen uit sectie 12 moeten als environment variables in Render worden ingesteld. REDIS_URL wordt automatisch gelinkt vanuit de Redis service.
