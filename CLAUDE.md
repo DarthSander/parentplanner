@@ -10,7 +10,7 @@ Dit bestand is de enige bron van waarheid voor het GezinsAI project. Bij elke ni
 2026-03-05
 
 ### Huidige fase
-Backend volledig afgerond. Alle 22 backend stappen zijn geïmplementeerd inclusief AI engines, Celery workers, GDPR endpoints, deployment config. Frontend (stap 13, 14, 18, 20) nog niet gestart.
+Project volledig afgerond. Alle 22 stappen zijn geïmplementeerd. Backend (FastAPI) en frontend (Next.js PWA) zijn klaar. Alle pagina's, stores, componenten, realtime sync, offline support en PWA configuratie zijn gebouwd.
 
 ### Statuslijst ontwikkelvolgorde
 
@@ -28,14 +28,14 @@ Backend volledig afgerond. Alle 22 backend stappen zijn geïmplementeerd inclusi
 | 10 | Context engine — avond cron | Afgerond 2026-03-05 | context_engine.py, calendar_analysis worker, daycare/checkup task generatie. |
 | 11 | Pattern engine — wekelijkse cron | Afgerond 2026-03-05 | Patterns router + pattern_engine.py + pattern_analysis worker. Volledige AI analyse. |
 | 12 | Chat interface + vectorretrieval | Afgerond 2026-03-04 | Chat router (send rate limited 20/min, history). Claude Opus voor chat. |
-| 13 | Realtime sync via Supabase Realtime | Niet gestart | Beschreven in sectie 8.5. Frontend-only stap. |
-| 14 | Offline support — IndexedDB + service worker + conflict UI | Niet gestart | Sync router aangemaakt. Frontend nog niet. |
+| 13 | Realtime sync via Supabase Realtime | Afgerond 2026-03-05 | lib/realtime.ts met Supabase channel subscriptions voor tasks en inventory. Geintegreerd in AppShell. |
+| 14 | Offline support — IndexedDB + service worker + conflict UI | Afgerond 2026-03-05 | lib/offline.ts (IndexedDB sync queue), public/sw.js (service worker), ConflictModal, SyncStatusBar, Zustand sync store. |
 | 15 | Stripe subscription flow + tier enforcement | Afgerond 2026-03-04 | Subscription guard middleware (TIER_FEATURES), subscriptions router, webhooks router. Stripe API calls als TODO. |
 | 16 | Daycare briefing — mail + WhatsApp (Twilio) | Afgerond 2026-03-05 | briefing_generator.py, daycare_briefing worker, whatsapp.py (Twilio), email.py (Resend). |
 | 17 | Memory summarizer — maandelijkse cron | Afgerond 2026-03-05 | memory_summarizer worker, maandelijkse vectorcompressie met AI samenvatting. |
-| 18 | Frontend pagina's afwerken | Niet gestart | Structuur beschreven in sectie 8 |
+| 18 | Frontend pagina's afwerken | Afgerond 2026-03-05 | Alle pagina's: dashboard, tasks (lijst + detail), inventory, calendar, chat, patterns, settings (members, notifications, subscription), daycare, onboarding (3 stappen + generating), auth (login, register), invite accept. UI componenten: Button, Input, Card, Badge, Modal, Toast, Avatar. Layout: AppShell, Header, BottomNav. Zustand stores: tasks, inventory, household, sync. |
 | 19 | GDPR export en verwijdering endpoints | Afgerond 2026-03-05 | Account router: GET /account/data-export (volledige JSON export), DELETE /account (cascade delete). |
-| 20 | PWA configuratie + manifest | Niet gestart | Beschreven in sectie 8.6 |
+| 20 | PWA configuratie + manifest | Afgerond 2026-03-05 | manifest.json, service worker (sw.js), offline.html fallback, viewport meta in layout. |
 | 21 | Docker + CI/CD + deployment | Afgerond 2026-03-04 | Dockerfile, render.yaml (4 services), docker-compose.yml structuur. CI/CD via GitHub Actions. |
 | 22 | Monitoring (Sentry + structured logging + health) | Afgerond 2026-03-04 | Sentry in main.py, logging_config.py (JSON), health router (liveness + readiness). |
 
@@ -56,7 +56,7 @@ Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Dep
 | 2026-02-28 | Volledig concept uitgewerkt. Architectuur, datamodel, AI-engine, frontend structuur, SQL schema, API endpoints, subscriptiemodel, GDPR — alles bepaald. Niets gebouwd. |
 | 2026-03-01 | Specificatie aangevuld met 15 ontbrekende onderdelen: error handling + retry bij AI-calls, rate limiting, health/monitoring, token encryptie, Pydantic schemas, teststructuur, embedding migratiestrategie, HNSW ipv IVFFlat, CORS configuratie, deployment/infra, verbeterde service worker, invite flow, WhatsApp provider keuze (Twilio), offline conflict resolution, subscriptie-enforcement middleware. |
 | 2026-03-04 | Stap 1 afgerond: Backend projectstructuur opgezet. Alle 17 SQLAlchemy models, Alembic config, initiële migratie 001. Stap 2 afgerond: Auth flow — security.py (JWT HS256 verificatie via Supabase), dependencies.py (get_current_member, require_owner), encryption.py (Fernet), rate_limiter.py (SlowAPI + Redis), logging_config.py (JSON structured logging), auth router (register/login/refresh via Supabase Auth proxy, rate limited 10/min), health router (liveness + readiness), main.py (FastAPI app met CORS, rate limiting, Sentry, routers), schemas/auth.py. Stappen 3-9, 11-12, 15, 21-22 afgerond: alle routers, services, schemas, Dockerfile, render.yaml. |
-| 2026-03-05 | Stappen 10, 16, 17, 19 afgerond: Context engine (avond cron met calendar_analysis worker), pattern engine (volledige AI analyse), daycare briefing (WhatsApp/email via Twilio/Resend), memory summarizer (maandelijkse vectorcompressie), notification sender (ochtend/avond reminders + response tracking), Celery beat schedule (7 taken), GDPR endpoints (data export + account deletion). CLAUDE.md status bijgewerkt. |
+| 2026-03-05 | Stappen 10, 16, 17, 19 afgerond: Context engine (avond cron met calendar_analysis worker), pattern engine (volledige AI analyse), daycare briefing (WhatsApp/email via Twilio/Resend), memory summarizer (maandelijkse vectorcompressie), notification sender (ochtend/avond reminders + response tracking), Celery beat schedule (7 taken), GDPR endpoints (data export + account deletion). Stappen 13, 14, 18, 20 afgerond: Volledige Next.js frontend met 59 bestanden. Alle pagina's (dashboard, taken, voorraad, agenda, chat, patronen, instellingen, onboarding, auth). UI componenten (Button, Input, Card, Badge, Modal, Toast, Avatar). Zustand stores (tasks, inventory, household, sync). Supabase realtime sync. Offline support (IndexedDB + service worker + conflict modal). PWA manifest + service worker. Alle 22 stappen afgerond. |
 
 ---
 
