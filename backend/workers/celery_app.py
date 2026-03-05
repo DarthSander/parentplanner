@@ -21,3 +21,8 @@ celery_app.conf.update(
 
 # Auto-discover tasks
 celery_app.autodiscover_tasks(["workers.tasks"])
+
+# Beat schedule
+from workers.beat_schedule import CELERYBEAT_SCHEDULE  # noqa: E402
+
+celery_app.conf.beat_schedule = CELERYBEAT_SCHEDULE
