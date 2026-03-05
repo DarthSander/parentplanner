@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Lora:wght@500;600;700&display=swap');
+
+:root {
+  --color-background: #FAF8F5;
+  --color-surface: #FFFFFF;
+  --color-surface-alt: #F2EDE8;
+  --color-primary: #4A6741;
+  --color-primary-light: #7A9E72;
+  --color-accent: #C4783A;
+  --color-accent-light: #E8A96D;
+  --color-text: #2C2C2C;
+  --color-text-muted: #7A7269;
+  --color-danger: #C0392B;
+  --color-warning: #E67E22;
+  --color-success: #27AE60;
+  --color-border: #E0D9D1;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: 'Lora', Georgia, serif;
+  font-weight: 600;
+  line-height: 1.3;
+}

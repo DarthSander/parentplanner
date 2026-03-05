@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GezinsAI - Offline</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: #FAF8F5;
+      color: #2C2C2C;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .container {
+      text-align: center;
+      max-width: 320px;
+    }
+    h1 {
+      font-family: 'Lora', Georgia, serif;
+      color: #4A6741;
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+    p {
+      color: #7A7269;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+    button {
+      background: #4A6741;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    button:hover { background: #7A9E72; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Je bent offline</h1>
+    <p>Geen internetverbinding gevonden. Je wijzigingen worden automatisch gesynchroniseerd zodra je weer online bent.</p>
+    <button onclick="window.location.reload()">Opnieuw proberen</button>
+  </div>
+</body>
+</html>
