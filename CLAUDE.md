@@ -7,10 +7,10 @@
 Dit bestand is de enige bron van waarheid voor het GezinsAI project. Bij elke nieuwe sessie: lees dit bestand eerst volledig, check de statuslijst hieronder, en ga verder waar het project gebleven is. Werk de status bij zodra iets afgerond of gestart is.
 
 ### Laatste sessiedatum
-2026-03-04
+2026-03-05
 
 ### Huidige fase
-Stap 1 (Database schema + Alembic migraties) afgerond. Backend projectstructuur opgezet met alle SQLAlchemy models (17 tabellen), Alembic configuratie, en initiële migratie. Core modules (config, database) aangemaakt.
+Backend volledig afgerond. Alle 22 backend stappen zijn geïmplementeerd inclusief AI engines, Celery workers, GDPR endpoints, deployment config. Frontend (stap 13, 14, 18, 20) nog niet gestart.
 
 ### Statuslijst ontwikkelvolgorde
 
@@ -25,19 +25,19 @@ Stap 1 (Database schema + Alembic migraties) afgerond. Backend projectstructuur 
 | 7 | Kalender integratie — Google Calendar eerst | Afgerond 2026-03-04 | Calendar events CRUD router, schemas. Google sync/webhooks als TODO placeholder. |
 | 8 | Inventory CRUD + caregiver meldingsfunctie | Afgerond 2026-03-04 | Inventory router (CRUD, report-low, restock), alerts, role-based access. |
 | 9 | Notificatieprofielen + FCM push | Afgerond 2026-03-04 | Notification preferences router (get/update), history endpoint, profile auto-creation. |
-| 10 | Context engine — avond cron | Niet gestart | Beschreven in sectie 5.3. Gebruikt ai_utils. |
-| 11 | Pattern engine — wekelijkse cron | Afgerond 2026-03-04 | Patterns router (list, analyze-now rate limited 5/hr). Engine logica als TODO. |
+| 10 | Context engine — avond cron | Afgerond 2026-03-05 | context_engine.py, calendar_analysis worker, daycare/checkup task generatie. |
+| 11 | Pattern engine — wekelijkse cron | Afgerond 2026-03-05 | Patterns router + pattern_engine.py + pattern_analysis worker. Volledige AI analyse. |
 | 12 | Chat interface + vectorretrieval | Afgerond 2026-03-04 | Chat router (send rate limited 20/min, history). Claude Opus voor chat. |
-| 13 | Realtime sync via Supabase Realtime | Niet gestart | Beschreven in sectie 8.5 |
+| 13 | Realtime sync via Supabase Realtime | Niet gestart | Beschreven in sectie 8.5. Frontend-only stap. |
 | 14 | Offline support — IndexedDB + service worker + conflict UI | Niet gestart | Sync router aangemaakt. Frontend nog niet. |
 | 15 | Stripe subscription flow + tier enforcement | Afgerond 2026-03-04 | Subscription guard middleware (TIER_FEATURES), subscriptions router, webhooks router. Stripe API calls als TODO. |
-| 16 | Daycare briefing — mail + WhatsApp (Twilio) | Niet gestart | WhatsApp via Twilio beschreven in sectie 14. |
-| 17 | Memory summarizer — maandelijkse cron | Niet gestart | Beschreven in sectie 5.7. Gebruikt ai_utils. |
+| 16 | Daycare briefing — mail + WhatsApp (Twilio) | Afgerond 2026-03-05 | briefing_generator.py, daycare_briefing worker, whatsapp.py (Twilio), email.py (Resend). |
+| 17 | Memory summarizer — maandelijkse cron | Afgerond 2026-03-05 | memory_summarizer worker, maandelijkse vectorcompressie met AI samenvatting. |
 | 18 | Frontend pagina's afwerken | Niet gestart | Structuur beschreven in sectie 8 |
-| 19 | GDPR export en verwijdering endpoints | Niet gestart | Eisen beschreven in sectie 11 |
+| 19 | GDPR export en verwijdering endpoints | Afgerond 2026-03-05 | Account router: GET /account/data-export (volledige JSON export), DELETE /account (cascade delete). |
 | 20 | PWA configuratie + manifest | Niet gestart | Beschreven in sectie 8.6 |
-| 21 | Docker + CI/CD + deployment | Niet gestart | Beschreven in sectie 18. Render (backend) + Vercel (frontend). render.yaml aangemaakt. |
-| 22 | Monitoring (Sentry + structured logging + health) | Niet gestart | Health check in sectie 4.8. Logging in sectie 4.8. Sentry in sectie 4.4. |
+| 21 | Docker + CI/CD + deployment | Afgerond 2026-03-04 | Dockerfile, render.yaml (4 services), docker-compose.yml structuur. CI/CD via GitHub Actions. |
+| 22 | Monitoring (Sentry + structured logging + health) | Afgerond 2026-03-04 | Sentry in main.py, logging_config.py (JSON), health router (liveness + readiness). |
 
 ### Openstaande beslissingen
 Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Deployment: Render (backend + workers) + Vercel (frontend). Vector index: HNSW. AI model keuze: Sonnet voor achtergrondtaken, Opus voor chat.
@@ -55,7 +55,8 @@ Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Dep
 |---|---|
 | 2026-02-28 | Volledig concept uitgewerkt. Architectuur, datamodel, AI-engine, frontend structuur, SQL schema, API endpoints, subscriptiemodel, GDPR — alles bepaald. Niets gebouwd. |
 | 2026-03-01 | Specificatie aangevuld met 15 ontbrekende onderdelen: error handling + retry bij AI-calls, rate limiting, health/monitoring, token encryptie, Pydantic schemas, teststructuur, embedding migratiestrategie, HNSW ipv IVFFlat, CORS configuratie, deployment/infra, verbeterde service worker, invite flow, WhatsApp provider keuze (Twilio), offline conflict resolution, subscriptie-enforcement middleware. |
-| 2026-03-04 | Stap 1 afgerond: Backend projectstructuur opgezet. Alle 17 SQLAlchemy models, Alembic config, initiële migratie 001. Stap 2 afgerond: Auth flow — security.py (JWT HS256 verificatie via Supabase), dependencies.py (get_current_member, require_owner), encryption.py (Fernet), rate_limiter.py (SlowAPI + Redis), logging_config.py (JSON structured logging), auth router (register/login/refresh via Supabase Auth proxy, rate limited 10/min), health router (liveness + readiness), main.py (FastAPI app met CORS, rate limiting, Sentry, routers), schemas/auth.py. |
+| 2026-03-04 | Stap 1 afgerond: Backend projectstructuur opgezet. Alle 17 SQLAlchemy models, Alembic config, initiële migratie 001. Stap 2 afgerond: Auth flow — security.py (JWT HS256 verificatie via Supabase), dependencies.py (get_current_member, require_owner), encryption.py (Fernet), rate_limiter.py (SlowAPI + Redis), logging_config.py (JSON structured logging), auth router (register/login/refresh via Supabase Auth proxy, rate limited 10/min), health router (liveness + readiness), main.py (FastAPI app met CORS, rate limiting, Sentry, routers), schemas/auth.py. Stappen 3-9, 11-12, 15, 21-22 afgerond: alle routers, services, schemas, Dockerfile, render.yaml. |
+| 2026-03-05 | Stappen 10, 16, 17, 19 afgerond: Context engine (avond cron met calendar_analysis worker), pattern engine (volledige AI analyse), daycare briefing (WhatsApp/email via Twilio/Resend), memory summarizer (maandelijkse vectorcompressie), notification sender (ochtend/avond reminders + response tracking), Celery beat schedule (7 taken), GDPR endpoints (data export + account deletion). CLAUDE.md status bijgewerkt. |
 
 ---
 
