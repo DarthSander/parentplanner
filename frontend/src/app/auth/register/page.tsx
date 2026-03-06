@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { signUp } from '@/lib/auth';
+import { signUp, type AuthTokens } from '@/lib/auth';
 import api from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -23,14 +23,17 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await signUp(email, password, displayName);
-      // Create household after registration
-      await api.post('/households', {
-        name: householdName || `${displayName}'s gezin`,
-        display_name: displayName,
-      });
+
+      // Maak direct huishouden aan en ga naar onboarding
+      await api.post('/households', { name: householdName || `${displayName}'s gezin` });
       router.push('/onboarding');
-    } catch {
-      setError('Registratie mislukt. Probeer het opnieuw.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('already registered')) {
+        setError('Dit e-mailadres is al geregistreerd. Probeer in te loggen.');
+      } else {
+        setError('Registratie mislukt. Probeer het opnieuw.');
+      }
     } finally {
       setLoading(false);
     }

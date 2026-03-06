@@ -2,19 +2,26 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSession } from '@/lib/auth';
+import { getAccessToken } from '@/lib/auth';
+import api from '@/lib/api';
 
 export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    getSession().then((session) => {
-      if (session) {
-        router.replace('/dashboard');
-      } else {
+    (async () => {
+      const token = getAccessToken();
+      if (!token) {
         router.replace('/auth/login');
+        return;
       }
-    });
+      try {
+        await api.get('/households/me');
+        router.replace('/dashboard');
+      } catch {
+        router.replace('/onboarding');
+      }
+    })();
   }, [router]);
 
   return (

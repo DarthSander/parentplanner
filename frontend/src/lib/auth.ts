@@ -1,66 +1,87 @@
-/**
- * Auth helpers — direct API calls, no Supabase.
- * Tokens are stored in localStorage under 'access_token' and 'refresh_token'.
- */
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-import api from './api';
+export interface AuthTokens {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+  user_id: string;
+}
 
-const ACCESS_TOKEN_KEY = 'access_token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
-const USER_ID_KEY = 'user_id';
+export function getStoredTokens(): AuthTokens | null {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('auth_tokens');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function storeTokens(tokens: AuthTokens): void {
+  localStorage.setItem('auth_tokens', JSON.stringify(tokens));
+}
+
+export function clearTokens(): void {
+  localStorage.removeItem('auth_tokens');
+}
+
+export async function signUp(
+  email: string,
+  password: string,
+  display_name: string,
+): Promise<AuthTokens> {
+  const res = await fetch(`${API_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, display_name }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Registratie mislukt.');
+  }
+  const tokens: AuthTokens = await res.json();
+  storeTokens(tokens);
+  return tokens;
+}
+
+export async function signIn(email: string, password: string): Promise<AuthTokens> {
+  const res = await fetch(`${API_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Inloggen mislukt.');
+  }
+  const tokens: AuthTokens = await res.json();
+  storeTokens(tokens);
+  return tokens;
+}
+
+export async function refreshTokens(): Promise<AuthTokens | null> {
+  const current = getStoredTokens();
+  if (!current?.refresh_token) return null;
+  const res = await fetch(`${API_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refresh_token: current.refresh_token }),
+  });
+  if (!res.ok) {
+    clearTokens();
+    return null;
+  }
+  const tokens: AuthTokens = await res.json();
+  storeTokens(tokens);
+  return tokens;
+}
+
+export function signOut(): void {
+  clearTokens();
+  window.location.href = '/auth/login';
+}
 
 export function getAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
-}
-
-export function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
-}
-
-export function getUserId(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(USER_ID_KEY);
-}
-
-function storeTokens(data: { access_token: string; refresh_token: string; user_id: string }) {
-  localStorage.setItem(ACCESS_TOKEN_KEY, data.access_token);
-  localStorage.setItem(REFRESH_TOKEN_KEY, data.refresh_token);
-  localStorage.setItem(USER_ID_KEY, data.user_id);
-}
-
-function clearTokens() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-  localStorage.removeItem(USER_ID_KEY);
-}
-
-export async function signUp(email: string, password: string, display_name: string) {
-  const { data } = await api.post('/auth/register', { email, password, display_name });
-  storeTokens(data);
-  return data;
-}
-
-export async function signIn(email: string, password: string) {
-  const { data } = await api.post('/auth/login', { email, password });
-  storeTokens(data);
-  return data;
-}
-
-export async function signOut() {
-  clearTokens();
-}
-
-export async function refreshTokens() {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) throw new Error('No refresh token available.');
-
-  const { data } = await api.post('/auth/refresh', { refresh_token: refreshToken });
-  storeTokens(data);
-  return data;
-}
-
-export function isAuthenticated(): boolean {
-  return Boolean(getAccessToken());
+  return getStoredTokens()?.access_token ?? null;
 }

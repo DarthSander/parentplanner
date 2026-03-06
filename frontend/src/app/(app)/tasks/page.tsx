@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTaskStore, Task } from '@/store/tasks';
 import TaskList from '@/components/tasks/TaskList';
 import TaskForm from '@/components/tasks/TaskForm';
+import SmartTaskInput from '@/components/tasks/SmartTaskInput';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 
@@ -40,8 +41,10 @@ export default function TasksPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-display font-semibold">Taken</h2>
-        <Button size="sm" onClick={() => setShowForm(true)}>+ Nieuwe taak</Button>
+        <Button size="sm" variant="secondary" onClick={() => setShowForm(true)}>Formulier</Button>
       </div>
+
+      <SmartTaskInput onCreated={() => fetchTasks()} />
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {filters.map((f) => (

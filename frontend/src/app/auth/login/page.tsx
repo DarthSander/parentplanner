@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signIn } from '@/lib/auth';
+import api from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 
@@ -19,10 +20,32 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await signIn(email, password);
-      router.push('/dashboard');
-    } catch {
-      setError('Ongeldige inloggegevens. Probeer het opnieuw.');
+      const session = await signIn(email, password);
+      console.log('[login] signIn ok', session);
+
+      let hasHousehold = false;
+      try {
+        const resp = await api.get('/households/me');
+        console.log('[login] household found', resp.data);
+        hasHousehold = true;
+      } catch (householdErr: unknown) {
+        const status = (householdErr as { response?: { status: number } })?.response?.status;
+        console.log('[login] household check status:', status);
+      }
+
+      if (hasHousehold) {
+        router.push('/dashboard');
+      } else {
+        router.push('/onboarding');
+      }
+    } catch (err: unknown) {
+      console.error('[login] error:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('Email not confirmed')) {
+        setError('Bevestig eerst je e-mailadres via de link die we hebben gestuurd.');
+      } else {
+        setError(`Inloggen mislukt: ${msg}`);
+      }
     } finally {
       setLoading(false);
     }

@@ -1,15 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useTaskStore } from '@/store/tasks';
 import { useHouseholdStore } from '@/store/household';
 import { toast } from '@/components/ui/Toast';
+import api from '@/lib/api';
 
 interface TaskFormProps {
   onClose: () => void;
 }
+
+interface AISuggestion {
+  category: string;
+  task_type: string;
+  estimated_minutes: number | null;
+  suggested_assignee_id: string | null;
+  reasoning: string;
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  baby_care: 'Babyzorg',
+  household: 'Huishouden',
+  work: 'Werk',
+  private: 'Prive',
+};
 
 export default function TaskForm({ onClose }: TaskFormProps) {
   const { createTask } = useTaskStore();
@@ -21,6 +37,59 @@ export default function TaskForm({ onClose }: TaskFormProps) {
   const [assignedTo, setAssignedTo] = useState<string>('');
   const [dueDate, setDueDate] = useState('');
   const [estimatedMinutes, setEstimatedMinutes] = useState('');
+
+  // AI suggestion state
+  const [suggestion, setSuggestion] = useState<AISuggestion | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [appliedFields, setAppliedFields] = useState<Set<string>>(new Set());
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fetch AI suggestion when title changes (debounced 700ms)
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (title.trim().length < 3) {
+      setSuggestion(null);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      setSuggesting(true);
+      try {
+        const { data } = await api.post('/ai/suggest-task', { title: title.trim() });
+        setSuggestion(data);
+      } catch {
+        // silent — AI is optional
+      } finally {
+        setSuggesting(false);
+      }
+    }, 700);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [title]);
+
+  const applyCategory = () => {
+    if (!suggestion) return;
+    setCategory(suggestion.category);
+    setAppliedFields((prev) => new Set(prev).add('category'));
+  };
+
+  const applyType = () => {
+    if (!suggestion) return;
+    setTaskType(suggestion.task_type);
+    setAppliedFields((prev) => new Set(prev).add('task_type'));
+  };
+
+  const applyMinutes = () => {
+    if (!suggestion?.estimated_minutes) return;
+    setEstimatedMinutes(String(suggestion.estimated_minutes));
+    setAppliedFields((prev) => new Set(prev).add('minutes'));
+  };
+
+  const applyAssignee = () => {
+    if (!suggestion?.suggested_assignee_id) return;
+    setAssignedTo(suggestion.suggested_assignee_id);
+    setAppliedFields((prev) => new Set(prev).add('assignee'));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,16 +114,76 @@ export default function TaskForm({ onClose }: TaskFormProps) {
     }
   };
 
+  const suggestionAssigneeName = suggestion?.suggested_assignee_id
+    ? members.find((m) => m.id === suggestion.suggested_assignee_id)?.display_name
+    : null;
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Input
-        label="Titel"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="Wat moet er gedaan worden?"
-        required
-        autoFocus
-      />
+      <div className="relative">
+        <Input
+          label="Titel"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Wat moet er gedaan worden?"
+          required
+          autoFocus
+        />
+        {suggesting && (
+          <span className="absolute right-2 bottom-2 text-xs text-text-muted flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5 border-2 border-text-muted/40 border-t-primary rounded-full animate-spin" />
+            AI denkt mee
+          </span>
+        )}
+      </div>
+
+      {/* AI suggestion chips */}
+      {suggestion && (
+        <div className="bg-primary/5 border border-primary/15 rounded-lg p-3">
+          <p className="text-xs text-primary font-medium mb-2">AI-suggestie</p>
+          <div className="flex flex-wrap gap-1.5">
+            {!appliedFields.has('category') && (
+              <button
+                type="button"
+                onClick={applyCategory}
+                className="px-2.5 py-1 rounded-full text-xs bg-white border border-primary/30 text-primary hover:bg-primary hover:text-white transition-colors"
+              >
+                {CATEGORY_LABELS[suggestion.category] || suggestion.category}
+              </button>
+            )}
+            {!appliedFields.has('task_type') && (
+              <button
+                type="button"
+                onClick={applyType}
+                className="px-2.5 py-1 rounded-full text-xs bg-white border border-primary/30 text-primary hover:bg-primary hover:text-white transition-colors"
+              >
+                {suggestion.task_type === 'quick' ? 'Snel' : 'Voorbereiding'}
+              </button>
+            )}
+            {suggestion.estimated_minutes && !appliedFields.has('minutes') && (
+              <button
+                type="button"
+                onClick={applyMinutes}
+                className="px-2.5 py-1 rounded-full text-xs bg-white border border-primary/30 text-primary hover:bg-primary hover:text-white transition-colors"
+              >
+                ~{suggestion.estimated_minutes} min
+              </button>
+            )}
+            {suggestionAssigneeName && !appliedFields.has('assignee') && (
+              <button
+                type="button"
+                onClick={applyAssignee}
+                className="px-2.5 py-1 rounded-full text-xs bg-white border border-accent/40 text-accent hover:bg-accent hover:text-white transition-colors"
+              >
+                {suggestionAssigneeName}
+              </button>
+            )}
+          </div>
+          {suggestion.reasoning && (
+            <p className="mt-1.5 text-xs text-text-muted italic">{suggestion.reasoning}</p>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-text-main">Categorie</label>

@@ -3,13 +3,17 @@ import logging
 import re
 from typing import TypeVar, Type
 
+import anthropic
 from pydantic import BaseModel, ValidationError
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from core.config import settings
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
+
+_client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
 
 class AICallError(Exception):
@@ -29,15 +33,7 @@ async def call_claude(
     Uses claude-sonnet-4-5 by default for background tasks (cheaper).
     Uses claude-opus-4-6 only for chat (better conversation).
     """
-    import anthropic
-    from tenacity import (
-        retry,
-        stop_after_attempt,
-        wait_exponential,
-        retry_if_exception_type,
-    )
-
-    client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = _client
 
     if messages is None:
         messages = [{"role": "user", "content": user_message}]
