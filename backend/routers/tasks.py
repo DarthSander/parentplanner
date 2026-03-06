@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.dependencies import get_current_member
 from models.member import Member, MemberRole
+from routers.sse import publish_event
 from models.task import Task, TaskCategory, TaskCompletion, TaskStatus
 from schemas.task import (
     TaskCompleteRequest,
@@ -51,7 +52,7 @@ async def create_task(
     await db.commit()
     await db.refresh(task)
 
-    # TODO: trigger embedding update async (step 6)
+    publish_event(str(member.household_id), "task.created", {"id": str(task.id)})
 
     return task
 
@@ -196,7 +197,7 @@ async def update_task(
     await db.commit()
     await db.refresh(task)
 
-    # TODO: trigger embedding update async (step 6)
+    publish_event(str(member.household_id), "task.updated", {"id": str(task.id)})
 
     return task
 
@@ -218,8 +219,11 @@ async def delete_task(
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
+    task_id_str = str(task.id)
+    household_id_str = str(member.household_id)
     await db.delete(task)
     await db.commit()
+    publish_event(household_id_str, "task.deleted", {"id": task_id_str})
 
 
 @router.post("/{task_id}/complete", response_model=TaskResponse)
@@ -255,7 +259,7 @@ async def complete_task(
     await db.commit()
     await db.refresh(task)
 
-    # TODO: trigger embedding for completion (step 6)
+    publish_event(str(member.household_id), "task.updated", {"id": str(task.id)})
 
     return task
 
@@ -284,4 +288,5 @@ async def snooze_task(
 
     await db.commit()
     await db.refresh(task)
+    publish_event(str(member.household_id), "task.updated", {"id": str(task.id)})
     return task

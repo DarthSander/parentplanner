@@ -22,7 +22,7 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await signUp(email, password);
+      await signUp(email, password, displayName);
       // Create household after registration
       await api.post('/households', {
         name: householdName || `${displayName}'s gezin`,

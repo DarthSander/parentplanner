@@ -14,10 +14,6 @@ services:
           name: gezinsai-redis
           type: redis
           property: connectionString
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: OPENAI_API_KEY
@@ -66,10 +62,6 @@ services:
           name: gezinsai-redis
           type: redis
           property: connectionString
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: OPENAI_API_KEY
