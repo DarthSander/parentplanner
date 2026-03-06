@@ -9,6 +9,7 @@ from core.database import get_db
 from core.dependencies import get_current_member
 from models.inventory import InventoryAlert, InventoryItem
 from models.member import Member, MemberRole
+from routers.sse import publish_event
 from schemas.inventory import InventoryCreate, InventoryResponse, InventoryUpdate, LowStockReport
 
 router = APIRouter()
@@ -35,6 +36,7 @@ async def create_item(
     db.add(item)
     await db.commit()
     await db.refresh(item)
+    publish_event(str(member.household_id), "inventory.created", {"id": str(item.id)})
     return item
 
 
@@ -73,6 +75,7 @@ async def update_item(
 
     await db.commit()
     await db.refresh(item)
+    publish_event(str(member.household_id), "inventory.updated", {"id": str(item.id)})
     return item
 
 
@@ -92,8 +95,11 @@ async def delete_item(
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 
+    item_id_str = str(item.id)
+    household_id_str = str(member.household_id)
     await db.delete(item)
     await db.commit()
+    publish_event(household_id_str, "inventory.deleted", {"id": item_id_str})
 
 
 @router.post("/{item_id}/report-low", status_code=status.HTTP_201_CREATED)
@@ -153,4 +159,5 @@ async def restock_item(
 
     await db.commit()
     await db.refresh(item)
+    publish_event(str(member.household_id), "inventory.updated", {"id": str(item.id)})
     return item

@@ -1,7 +1,8 @@
 import logging
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-import httpx
+import bcrypt
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -12,37 +13,42 @@ logger = logging.getLogger(__name__)
 
 bearer_scheme = HTTPBearer()
 
-# Supabase JWKS endpoint for JWT verification
-_supabase_jwks_url = f"{settings.SUPABASE_URL}/auth/v1/.well-known/jwks.json"
-_jwks_cache: dict | None = None
+
+def hash_password(password: str) -> str:
+    """Hash a plaintext password with bcrypt."""
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
-async def _get_supabase_jwks() -> dict:
-    """Fetch and cache Supabase JWKS for JWT verification."""
-    global _jwks_cache
-    if _jwks_cache is not None:
-        return _jwks_cache
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(_supabase_jwks_url)
-        response.raise_for_status()
-        _jwks_cache = response.json()
-        return _jwks_cache
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify a plaintext password against a bcrypt hash."""
+    return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
-def _decode_supabase_jwt(token: str) -> dict:
-    """
-    Decode and verify a Supabase JWT token.
-    Uses the JWT_SECRET (Supabase JWT secret) for HS256 verification.
-    """
+def create_access_token(user_id: UUID) -> str:
+    """Create a short-lived JWT access token."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    payload = {
+        "sub": str(user_id),
+        "type": "access",
+        "exp": expire,
+    }
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+
+
+def create_refresh_token(user_id: UUID) -> str:
+    """Create a long-lived JWT refresh token."""
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    payload = {
+        "sub": str(user_id),
+        "type": "refresh",
+        "exp": expire,
+    }
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+
+
+def _decode_token(token: str, expected_type: str) -> dict:
     try:
-        payload = jwt.decode(
-            token,
-            settings.JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated",
-        )
-        return payload
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -55,15 +61,31 @@ def _decode_supabase_jwt(token: str) -> dict:
             detail="Ongeldig token.",
         )
 
+    if payload.get("type") != expected_type:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Ongeldig token type.",
+        )
+    return payload
+
+
+def verify_refresh_token(token: str) -> UUID:
+    """Verify a refresh token and return the user ID."""
+    payload = _decode_token(token, "refresh")
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Ongeldig refresh token.",
+        )
+    return UUID(user_id)
+
 
 async def get_current_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> UUID:
-    """
-    Extract and verify the user ID from the Supabase JWT.
-    Returns the Supabase auth.users UUID.
-    """
-    payload = _decode_supabase_jwt(credentials.credentials)
+    """Extract and verify the user ID from a Bearer JWT access token."""
+    payload = _decode_token(credentials.credentials, "access")
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(

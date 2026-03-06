@@ -36,12 +36,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     syncPendingOperations();
   }, [syncPendingOperations]);
 
-  // Realtime subscription
+  // Realtime subscription via SSE
   useEffect(() => {
-    if (!household?.id) return;
-    const unsubscribe = subscribeToHousehold(household.id);
+    const unsubscribe = subscribeToHousehold();
     return unsubscribe;
-  }, [household?.id]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
