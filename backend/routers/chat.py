@@ -15,8 +15,9 @@ from models.member import Member
 from models.onboarding import OnboardingAnswer
 from models.pattern import Pattern
 from models.task import Task, TaskCompletion
-from schemas.chat import ChatMessageResponse, ChatRequest, ChatResponse
+from schemas.chat import ChatAction, ChatMessageResponse, ChatRequest, ChatResponse
 from services.ai.ai_utils import AICallError, call_claude
+from services.vector.retrieval import retrieve_context
 
 logger = logging.getLogger(__name__)
 
@@ -180,6 +181,45 @@ async def _build_full_context(db: AsyncSession, household_id, member: Member) ->
     return "\n\n".join(parts)
 
 
+def _extract_actions(raw_reply: str) -> tuple[str, list[ChatAction]]:
+    """Extract structured actions from the AI reply.
+
+    The AI may include a ```actions block with JSON at the end of its reply.
+    Returns (clean_reply, actions_list).
+    """
+    import json
+    import re
+
+    actions: list[ChatAction] = []
+
+    # Look for ```actions ... ``` block
+    pattern = r"```actions\s*\n?(.*?)\n?```"
+    match = re.search(pattern, raw_reply, re.DOTALL)
+
+    if match:
+        json_str = match.group(1).strip()
+        # Remove the actions block from the reply
+        clean_reply = raw_reply[:match.start()].rstrip()
+
+        try:
+            data = json.loads(json_str)
+            if not isinstance(data, list):
+                data = [data]
+            for item in data[:3]:  # max 3 actions
+                if isinstance(item, dict) and "action" in item and "label" in item:
+                    actions.append(ChatAction(
+                        action=item["action"],
+                        label=item["label"],
+                        data=item.get("data", {}),
+                    ))
+        except (json.JSONDecodeError, Exception) as e:
+            logger.debug(f"Failed to parse actions from chat reply: {e}")
+    else:
+        clean_reply = raw_reply
+
+    return clean_reply, actions
+
+
 @router.post("", response_model=ChatResponse)
 @limiter.limit("20/minute")
 async def send_chat_message(
@@ -202,6 +242,19 @@ async def send_chat_message(
 
     context = await _build_full_context(db, member.household_id, member)
 
+    # Vector retrieval: semantic search for relevant memories
+    vector_context = ""
+    try:
+        memory_docs = await retrieve_context(
+            db, member.household_id, payload.message, top_k=12,
+        )
+        if memory_docs:
+            vector_context = "\n\nRELEVANTE HERINNERINGEN UIT HET GEHEUGEN:\n" + "\n".join(
+                f"  - {doc}" for doc in memory_docs
+            )
+    except Exception:
+        pass  # graceful degradation — vector search is optional
+
     system_prompt = f"""Je bent de persoonlijke gezinsassistent van dit huishouden. Je bent proactief, denkt mee, en kent alle details.
 
 BELANGRIJKE REGELS:
@@ -215,23 +268,39 @@ BELANGRIJKE REGELS:
 - Gebruik de voorraaddata om slim mee te denken: als luiers 4 dagen meegaan en er zijn er nog 3, zeg dat
 - Als je een actie voorstelt, formuleer het als een concreet voorstel dat de gebruiker kan bevestigen
 
+ACTIES — BELANGRIJK:
+Als je antwoord een concrete actie bevat die de gebruiker in 1 klik kan uitvoeren,
+voeg dan aan het EINDE van je antwoord een JSON blok toe in dit formaat:
+```actions
+[{{"action": "create_task", "label": "Luiers kopen toevoegen", "data": {{"title": "Luiers kopen", "category": "household"}}}},
+ {{"action": "add_to_shopping", "label": "Op boodschappenlijst", "data": {{"item": "Luiers", "quantity": 1, "unit": "pak"}}}},
+ {{"action": "complete_task", "label": "Taak afronden", "data": {{"task_id": "uuid"}}}},
+ {{"action": "snooze_task", "label": "Uitstellen", "data": {{"task_id": "uuid"}}}}]
+```
+Maximaal 3 acties. Alleen als het relevant is. Niet bij elk bericht.
+De rest van je antwoord is gewone tekst, geen JSON.
+
 HUIDIGE SITUATIE VAN DIT HUISHOUDEN:
 {context}
+{vector_context}
 
 Je praat nu met: {member.display_name} (rol: {member.role.value})
 Datum/tijd: {datetime.now(timezone.utc).strftime('%A %d %B %Y, %H:%M')}"""
 
     try:
-        reply = await call_claude(
+        raw_reply = await call_claude(
             system=system_prompt,
             user_message=payload.message,
             model="claude-opus-4-6",
-            max_tokens=1000,
+            max_tokens=1200,
             messages=messages,
         )
     except AICallError as e:
         logger.error(f"Chat failed: {e}")
-        reply = "Sorry, ik kan even niet antwoorden. Probeer het over een paar seconden opnieuw."
+        raw_reply = "Sorry, ik kan even niet antwoorden. Probeer het over een paar seconden opnieuw."
+
+    # Extract actions from the reply
+    reply, actions = _extract_actions(raw_reply)
 
     user_msg = ChatMessage(
         household_id=member.household_id,
@@ -248,10 +317,17 @@ Datum/tijd: {datetime.now(timezone.utc).strftime('%A %d %B %Y, %H:%M')}"""
     db.add(user_msg)
     db.add(assistant_msg)
     await db.commit()
+    await db.refresh(user_msg)
     await db.refresh(assistant_msg)
+
+    # Embed both messages for vector memory
+    from workers.tasks.embed_document import embed_document
+    embed_document.delay(str(user_msg.id), "chat_message")
+    embed_document.delay(str(assistant_msg.id), "chat_message")
 
     return ChatResponse(
         reply=reply,
+        actions=actions,
         message_id=assistant_msg.id,
         created_at=assistant_msg.created_at,
     )
