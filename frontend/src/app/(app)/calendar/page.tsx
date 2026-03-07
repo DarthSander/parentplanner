@@ -1,11 +1,18 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import api from '@/lib/api';
 import { useTaskStore, Task } from '@/store/tasks';
 import AISuggestionBar from '@/components/ai/AISuggestionBar';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+
+interface CalendarIntegration {
+  id: string;
+  provider: string;
+  last_synced_at: string | null;
+}
 
 interface CalendarEvent {
   id: string;
@@ -23,6 +30,7 @@ const MEDICAL_KEYWORDS = ['consultatieburo', 'huisarts', 'prikken', 'vaccinatie'
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [integrations, setIntegrations] = useState<CalendarIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
@@ -30,10 +38,10 @@ export default function CalendarPage() {
   const { tasks } = useTaskStore();
 
   useEffect(() => {
-    api.get('/calendar/events')
-      .then(({ data }) => setEvents(data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.get('/calendar/events').then(({ data }) => setEvents(data)).catch(() => {}),
+      api.get('/calendar/integrations').then(({ data }) => setIntegrations(data)).catch(() => {}),
+    ]).finally(() => setLoading(false));
   }, []);
 
   // Generate 14 days for the horizontal scroller
@@ -89,7 +97,18 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-display font-semibold">Agenda</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-display font-semibold">Agenda</h2>
+        <Link
+          href="/settings/calendar"
+          className="flex items-center gap-1.5 text-xs text-text-muted hover:text-primary transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          {integrations.length > 0 ? `${integrations.length} gekoppeld` : 'Koppelen'}
+        </Link>
+      </div>
 
       <AISuggestionBar page="calendar" maxItems={2} compact />
 
