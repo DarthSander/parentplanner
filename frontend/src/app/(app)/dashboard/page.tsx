@@ -1,41 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTaskStore, Task } from '@/store/tasks';
 import { useInventoryStore } from '@/store/inventory';
 import { useHouseholdStore } from '@/store/household';
-import TaskList from '@/components/tasks/TaskList';
+import AISuggestionBar from '@/components/ai/AISuggestionBar';
+import TaskCard from '@/components/tasks/TaskCard';
 import TaskDistributionBar from '@/components/tasks/TaskDistributionBar';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import api from '@/lib/api';
-
-interface InsightItem {
-  type: 'balance' | 'warning' | 'pattern' | 'praise';
-  message: string;
-}
-
-const INSIGHT_ICON: Record<string, string> = {
-  balance: '⚖',
-  warning: '!',
-  pattern: '~',
-  praise: '+',
-};
-
-const INSIGHT_COLORS: Record<string, string> = {
-  balance: 'text-blue-700 bg-blue-50 border-blue-100',
-  warning: 'text-orange-700 bg-orange-50 border-orange-100',
-  pattern: 'text-primary bg-primary/5 border-primary/15',
-  praise: 'text-green-700 bg-green-50 border-green-100',
-};
-
-const ICON_COLORS: Record<string, string> = {
-  balance: 'bg-blue-100 text-blue-700',
-  warning: 'bg-orange-100 text-orange-700',
-  pattern: 'bg-primary/15 text-primary',
-  praise: 'bg-green-100 text-green-700',
-};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -45,81 +20,99 @@ export default function DashboardPage() {
   const [distribution, setDistribution] = useState<
     { member_id: string; display_name: string; completed_count: number; open_count: number; percentage: number }[]
   >([]);
-  const [insights, setInsights] = useState<InsightItem[]>([]);
-  const [insightsLoading, setInsightsLoading] = useState(true);
+  const [weekEvents, setWeekEvents] = useState<{ date: string; count: number }[]>([]);
 
   useEffect(() => {
     fetchTasks();
     fetchItems();
     api.get('/tasks/distribution').then(({ data }) => setDistribution(data)).catch(() => {});
-    api.get('/ai/insights')
-      .then(({ data }) => setInsights(data))
-      .catch(() => {})
-      .finally(() => setInsightsLoading(false));
+    // Fetch week events for mini overview
+    api.get('/calendar/events').then(({ data }) => {
+      const counts: Record<string, number> = {};
+      for (const e of data) {
+        const d = e.start_time?.split('T')[0];
+        if (d) counts[d] = (counts[d] || 0) + 1;
+      }
+      setWeekEvents(Object.entries(counts).map(([date, count]) => ({ date, count })));
+    }).catch(() => {});
   }, [fetchTasks, fetchItems]);
 
-  const today = new Date().toISOString().split('T')[0];
-  const todayTasks = tasks.filter(
-    (t) => t.status !== 'done' && t.due_date && t.due_date.startsWith(today),
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  // Categorize tasks
+  const openTasks = useMemo(() => tasks.filter((t) => t.status !== 'done'), [tasks]);
+  const overdueTasks = useMemo(
+    () => openTasks.filter((t) => t.due_date && new Date(t.due_date) < now).sort(
+      (a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime()
+    ),
+    [openTasks, now]
   );
-  const overdueTasks = tasks.filter(
-    (t) => t.status !== 'done' && t.due_date && t.due_date < new Date().toISOString(),
+  const todayTasks = useMemo(
+    () => openTasks.filter((t) => t.due_date && t.due_date.startsWith(todayStr) && !overdueTasks.includes(t)),
+    [openTasks, todayStr, overdueTasks]
   );
-  const myTasks = tasks.filter(
-    (t) => t.status !== 'done' && t.assigned_to === currentMember?.id,
+  const myTasks = useMemo(
+    () => openTasks.filter((t) => t.assigned_to === currentMember?.id),
+    [openTasks, currentMember]
   );
-  const lowStockItems = items.filter((i) => i.current_quantity <= i.threshold_quantity);
+  const lowStockItems = useMemo(
+    () => items.filter((i) => i.current_quantity <= i.threshold_quantity),
+    [items]
+  );
 
   const firstName = currentMember?.display_name?.split(' ')[0] ?? '';
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Goedemorgen' : hour < 18 ? 'Goedemiddag' : 'Goedenavond';
+
+  // Week overview: next 7 days
+  const weekDays = useMemo(() => {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      const taskCount = openTasks.filter((t) => t.due_date?.startsWith(dateStr)).length;
+      const eventCount = weekEvents.find((e) => e.date === dateStr)?.count || 0;
+      days.push({
+        date: d,
+        dateStr,
+        label: d.toLocaleDateString('nl-NL', { weekday: 'short' }),
+        dayNum: d.getDate(),
+        isToday: i === 0,
+        taskCount,
+        eventCount,
+        total: taskCount + eventCount,
+      });
+    }
+    return days;
+  }, [openTasks, weekEvents, now]);
+
+  const attentionCount = overdueTasks.length + lowStockItems.filter((i) => i.current_quantity === 0).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
+      {/* Header */}
       <div>
-        <h2 className="text-2xl font-display font-semibold mb-1">
-          Hoi{firstName ? `, ${firstName}` : ''}
+        <h2 className="text-2xl font-display font-semibold mb-0.5">
+          {greeting}{firstName ? `, ${firstName}` : ''}
         </h2>
         <p className="text-sm text-text-muted">
-          {new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}
+          {now.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })}
+          {todayTasks.length > 0 && ` \u2014 ${todayTasks.length} taken vandaag`}
         </p>
       </div>
 
-      {/* AI Insights */}
-      {(insightsLoading || insights.length > 0) && (
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-semibold text-primary uppercase tracking-wide">AI observaties</span>
-          </div>
-          {insightsLoading ? (
-            <div className="space-y-2">
-              {[1, 2].map((i) => (
-                <div key={i} className="h-10 bg-surface-alt rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {insights.map((insight, i) => (
-                <div
-                  key={i}
-                  className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border text-sm ${INSIGHT_COLORS[insight.type] || INSIGHT_COLORS.pattern}`}
-                >
-                  <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${ICON_COLORS[insight.type] || ICON_COLORS.pattern}`}>
-                    {INSIGHT_ICON[insight.type] || '~'}
-                  </span>
-                  <span>{insight.message}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {/* AI Proactive Suggestions Bar */}
+      <AISuggestionBar page="dashboard" maxItems={3} />
 
-      {/* Invite partner prompt if only 1 member */}
+      {/* Invite prompt */}
       {members.length === 1 && (
         <Card className="border-dashed border-primary/30 bg-primary/5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium">Je gezin is nog niet compleet</p>
-              <p className="text-xs text-text-muted mt-0.5">Voeg je partner of oppas toe zodat de AI taken kan verdelen</p>
+              <p className="text-xs text-text-muted mt-0.5">Voeg je partner toe zodat de AI taken kan verdelen</p>
             </div>
             <button
               onClick={() => router.push('/settings/members')}
@@ -131,56 +124,175 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {overdueTasks.length > 0 && (
-        <Card className="border-danger">
-          <h3 className="text-sm font-medium text-danger mb-2">
-            Verlopen ({overdueTasks.length})
+      {/* Attention needed — consolidated red section */}
+      {attentionCount > 0 && (
+        <Card className="border-danger/40 bg-danger/5">
+          <h3 className="text-sm font-semibold text-danger mb-2 flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-full bg-danger/15 flex items-center justify-center text-xs">!</span>
+            Aandacht nodig ({attentionCount})
           </h3>
-          <TaskList
-            tasks={overdueTasks.slice(0, 3)}
-            onTaskClick={(t: Task) => router.push(`/tasks/${t.id}`)}
-          />
+          <div className="space-y-1.5">
+            {overdueTasks.slice(0, 3).map((t) => (
+              <div
+                key={t.id}
+                onClick={() => router.push(`/tasks/${t.id}`)}
+                className="flex items-center justify-between text-sm cursor-pointer hover:bg-danger/5 rounded px-1 py-0.5 -mx-1"
+              >
+                <span className="truncate">{t.title}</span>
+                <span className="text-xs text-danger shrink-0 ml-2">
+                  {t.snooze_count > 0 ? `${t.snooze_count}x uitgesteld` : 'verlopen'}
+                </span>
+              </div>
+            ))}
+            {lowStockItems.filter((i) => i.current_quantity === 0).slice(0, 2).map((i) => (
+              <div
+                key={i.id}
+                onClick={() => router.push('/inventory')}
+                className="flex items-center justify-between text-sm cursor-pointer hover:bg-danger/5 rounded px-1 py-0.5 -mx-1"
+              >
+                <span className="truncate">{i.name}</span>
+                <span className="text-xs text-danger shrink-0 ml-2">op</span>
+              </div>
+            ))}
+          </div>
         </Card>
       )}
 
+      {/* Today's tasks */}
       <Card>
-        <h3 className="text-sm font-medium mb-2">Vandaag ({todayTasks.length})</h3>
-        <TaskList
-          tasks={todayTasks}
-          onTaskClick={(t: Task) => router.push(`/tasks/${t.id}`)}
-          emptyMessage="Geen taken voor vandaag"
-        />
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold">Vandaag</h3>
+          <span className="text-xs text-text-muted">{todayTasks.length} taken</span>
+        </div>
+        {todayTasks.length === 0 ? (
+          <p className="text-sm text-text-muted text-center py-4">Geen taken voor vandaag</p>
+        ) : (
+          <div className="space-y-1.5">
+            {todayTasks.map((task) => (
+              <TaskCard key={task.id} task={task} onClick={() => router.push(`/tasks/${task.id}`)} />
+            ))}
+          </div>
+        )}
       </Card>
 
+      {/* Quick actions */}
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          onClick={() => router.push('/tasks')}
+          className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface border border-border hover:shadow-sm transition-shadow"
+        >
+          <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <svg className="w-4 h-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </span>
+          <span className="text-[11px] font-medium text-text-main">Taak</span>
+        </button>
+        <button
+          onClick={() => {
+            sessionStorage.setItem('chat_prefill', '');
+            router.push('/chat');
+          }}
+          className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface border border-border hover:shadow-sm transition-shadow"
+        >
+          <span className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center">
+            <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </span>
+          <span className="text-[11px] font-medium text-text-main">Chat AI</span>
+        </button>
+        <button
+          onClick={() => router.push('/inventory')}
+          className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface border border-border hover:shadow-sm transition-shadow"
+        >
+          <span className="w-8 h-8 rounded-full bg-warning/10 flex items-center justify-center">
+            <svg className="w-4 h-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+          </span>
+          <span className="text-[11px] font-medium text-text-main">Voorraad</span>
+        </button>
+      </div>
+
+      {/* My tasks */}
       {myTasks.length > 0 && (
         <Card>
-          <h3 className="text-sm font-medium mb-2">Mijn taken ({myTasks.length})</h3>
-          <TaskList
-            tasks={myTasks.slice(0, 5)}
-            onTaskClick={(t: Task) => router.push(`/tasks/${t.id}`)}
-          />
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold">Mijn taken</h3>
+            <button onClick={() => router.push('/tasks')} className="text-xs text-primary">Alles bekijken</button>
+          </div>
+          <div className="space-y-1.5">
+            {myTasks.slice(0, 4).map((task) => (
+              <TaskCard key={task.id} task={task} onClick={() => router.push(`/tasks/${task.id}`)} />
+            ))}
+          </div>
         </Card>
       )}
 
+      {/* Week overview */}
+      <Card>
+        <h3 className="text-sm font-semibold mb-3">Weekoverzicht</h3>
+        <div className="flex justify-between">
+          {weekDays.map((day) => (
+            <div key={day.dateStr} className="flex flex-col items-center gap-1">
+              <span className={`text-[10px] font-medium uppercase ${day.isToday ? 'text-primary' : 'text-text-muted'}`}>
+                {day.label}
+              </span>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium
+                ${day.isToday ? 'bg-primary text-white' : day.total > 3 ? 'bg-warning/15 text-warning' : 'bg-surface-alt text-text-main'}`}
+              >
+                {day.dayNum}
+              </div>
+              {day.total > 0 && (
+                <div className="flex gap-0.5">
+                  {day.taskCount > 0 && <span className="w-1 h-1 rounded-full bg-primary" />}
+                  {day.eventCount > 0 && <span className="w-1 h-1 rounded-full bg-accent" />}
+                </div>
+              )}
+              {day.total === 0 && <div className="h-1" />}
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Distribution */}
       {distribution.length > 0 && (
         <Card>
-          <h3 className="text-sm font-medium mb-3">Taakverdeling deze week</h3>
+          <h3 className="text-sm font-semibold mb-3">Taakverdeling deze week</h3>
           <TaskDistributionBar distribution={distribution} />
         </Card>
       )}
 
+      {/* Low stock */}
       {lowStockItems.length > 0 && (
         <Card>
-          <h3 className="text-sm font-medium mb-2">
-            Voorraad <Badge variant="warning">{lowStockItems.length} laag</Badge>
-          </h3>
-          <div className="space-y-1">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold">
+              Voorraad <Badge variant="warning">{lowStockItems.length} laag</Badge>
+            </h3>
+            <button onClick={() => router.push('/inventory')} className="text-xs text-primary">Bekijk alles</button>
+          </div>
+          <div className="space-y-1.5">
             {lowStockItems.slice(0, 5).map((item) => (
-              <div key={item.id} className="flex justify-between text-sm">
-                <span>{item.name}</span>
-                <span className={`font-medium ${item.current_quantity === 0 ? 'text-danger' : 'text-warning'}`}>
-                  {item.current_quantity} {item.unit}
-                </span>
+              <div key={item.id} className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between text-sm">
+                    <span className="truncate">{item.name}</span>
+                    <span className={`font-medium shrink-0 ml-2 ${item.current_quantity === 0 ? 'text-danger' : 'text-warning'}`}>
+                      {item.current_quantity} {item.unit}
+                    </span>
+                  </div>
+                  {/* Progress bar */}
+                  <div className="w-full h-1.5 bg-surface-alt rounded-full mt-1">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        item.current_quantity === 0 ? 'bg-danger' : item.current_quantity <= item.threshold_quantity ? 'bg-warning' : 'bg-success'
+                      }`}
+                      style={{ width: `${Math.min(100, (item.current_quantity / Math.max(item.threshold_quantity * 2, 1)) * 100)}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             ))}
           </div>

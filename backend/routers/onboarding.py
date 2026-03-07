@@ -60,8 +60,9 @@ async def create_onboarding(
     await db.commit()
     await db.refresh(answer)
 
-    # TODO: Generate initial tasks, inventory, and patterns (async via Celery)
-    # This will be implemented when vector/embedding pipeline is ready (step 6)
+    # Generate starter tasks, inventory, and patterns asynchronously
+    from workers.tasks.generate_starter_data import generate_starter_data
+    generate_starter_data.delay(str(answer.household_id), str(answer.id))
 
     return answer
 
