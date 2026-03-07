@@ -29,13 +29,15 @@ class CalendarEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     all_day: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     ai_context_processed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Cached event classification: birthday | trip | vacation | medical | daycare | other
+    event_type: Mapped[str | None] = mapped_column(String, nullable=True)
 
     # Relationships
     household = relationship("Household", back_populates="calendar_events")
 
     __table_args__ = (
         CheckConstraint(
-            "source IN ('google', 'caldav', 'manual')",
+            "source IN ('google', 'caldav', 'manual', 'outlook')",
             name="ck_calendar_source",
         ),
     )
@@ -60,7 +62,7 @@ class CalendarIntegration(UUIDPrimaryKeyMixin, Base):
 
     __table_args__ = (
         CheckConstraint(
-            "provider IN ('google', 'caldav')",
+            "provider IN ('google', 'caldav', 'outlook')",
             name="ck_calendar_integration_provider",
         ),
     )

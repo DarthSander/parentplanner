@@ -62,6 +62,10 @@ class Task(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("members.id", ondelete="SET NULL"), nullable=True
     )
+    # Link to the calendar event this task was generated from (enables write-back on completion)
+    linked_calendar_event_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("calendar_events.id", ondelete="SET NULL"), nullable=True
+    )
 
     # Relationships
     household = relationship("Household", back_populates="tasks")

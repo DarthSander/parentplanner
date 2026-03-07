@@ -12,7 +12,7 @@ const menuItems = [
   { href: '/settings/members', label: 'Leden beheren', description: 'Uitnodigen en rollen wijzigen', permission: 'manage_members' },
   { href: '/settings/notifications', label: 'Notificaties', description: 'Meldingsvoorkeuren instellen', permission: null },
   { href: '/settings/subscription', label: 'Abonnement', description: 'Plan en facturatie', permission: 'view_subscription' },
-  { href: '/calendar', label: 'Agenda', description: 'Kalender en koppelingen', permission: null },
+  { href: '/settings/calendar', label: 'Agenda koppelingen', description: 'Google Calendar en CalDAV koppelen', permission: null },
   { href: '/patterns', label: 'Patronen', description: 'AI-analyse van je gezin', permission: 'view_patterns' },
   { href: '/daycare', label: 'Opvang', description: 'Briefing instellingen', permission: 'manage_settings' },
 ];
