@@ -39,8 +39,11 @@ export default function CalendarSettingsPage() {
     // Handle OAuth callback: ?code=... is in the URL after Google redirect
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
+    const state = params.get('state');
     if (code) {
-      handleOAuthCallback(code);
+      // Microsoft OAuth includes a 'state' param we set; Google does not (or uses it differently)
+      const provider = state === 'outlook' ? 'outlook' : 'google';
+      handleOAuthCallback(code, provider);
       // Clean URL
       router.replace('/settings/calendar');
     }
@@ -57,22 +60,23 @@ export default function CalendarSettingsPage() {
     }
   };
 
-  const handleOAuthCallback = async (code: string) => {
+  const handleOAuthCallback = async (code: string, provider: 'google' | 'outlook') => {
     setConnecting(true);
     setError(null);
     const redirectUri = `${window.location.origin}/settings/calendar`;
     try {
-      const { data } = await api.post('/calendar/integrations/google', {
-        code,
-        redirect_uri: redirectUri,
-      });
+      const endpoint = provider === 'outlook'
+        ? '/calendar/integrations/outlook'
+        : '/calendar/integrations/google';
+      const { data } = await api.post(endpoint, { code, redirect_uri: redirectUri });
       setIntegrations((prev) => {
         const exists = prev.find((i) => i.id === data.id);
         if (exists) return prev.map((i) => (i.id === data.id ? data : i));
         return [...prev, data];
       });
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Google Calendar verbinden mislukt.');
+      const label = provider === 'outlook' ? 'Outlook' : 'Google Calendar';
+      setError(err?.response?.data?.detail || `${label} verbinden mislukt.`);
     } finally {
       setConnecting(false);
     }
@@ -86,11 +90,24 @@ export default function CalendarSettingsPage() {
       const { data } = await api.get('/calendar/integrations/google/auth-url', {
         params: { redirect_uri: redirectUri },
       });
-      // Redirect the user to Google OAuth
       window.location.href = data.auth_url;
     } catch (err: any) {
-      const detail = err?.response?.data?.detail;
-      setError(detail || 'Kan Google OAuth URL niet ophalen.');
+      setError(err?.response?.data?.detail || 'Kan Google OAuth URL niet ophalen.');
+      setConnecting(false);
+    }
+  };
+
+  const connectOutlook = async () => {
+    setConnecting(true);
+    setError(null);
+    const redirectUri = `${window.location.origin}/settings/calendar`;
+    try {
+      const { data } = await api.get('/calendar/integrations/outlook/auth-url', {
+        params: { redirect_uri: redirectUri },
+      });
+      window.location.href = data.auth_url;
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Kan Outlook OAuth URL niet ophalen.');
       setConnecting(false);
     }
   };
@@ -129,6 +146,7 @@ export default function CalendarSettingsPage() {
   };
 
   const hasGoogle = integrations.some((i) => i.provider === 'google');
+  const hasOutlook = integrations.some((i) => i.provider === 'outlook');
 
   return (
     <div className="space-y-4">
@@ -173,6 +191,13 @@ export default function CalendarSettingsPage() {
                         <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                       </svg>
+                    ) : integration.provider === 'outlook' ? (
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                        <rect x="2" y="2" width="9" height="9" fill="#F25022"/>
+                        <rect x="13" y="2" width="9" height="9" fill="#7FBA00"/>
+                        <rect x="2" y="13" width="9" height="9" fill="#00A4EF"/>
+                        <rect x="13" y="13" width="9" height="9" fill="#FFB900"/>
+                      </svg>
                     ) : (
                       <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -181,7 +206,7 @@ export default function CalendarSettingsPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium capitalize">
-                      {integration.provider === 'google' ? 'Google Calendar' : 'CalDAV'}
+                      {integration.provider === 'google' ? 'Google Calendar' : integration.provider === 'outlook' ? 'Outlook / Office 365' : 'CalDAV'}
                     </p>
                     <p className="text-xs text-text-muted">
                       Gesynchroniseerd: {formatDate(integration.last_synced_at)}
@@ -241,6 +266,23 @@ export default function CalendarSettingsPage() {
           </Button>
         )}
 
+        {!hasOutlook && (
+          <Button
+            variant="secondary"
+            className="w-full"
+            onClick={connectOutlook}
+            loading={connecting}
+          >
+            <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none">
+              <rect x="2" y="2" width="9" height="9" fill="#F25022"/>
+              <rect x="13" y="2" width="9" height="9" fill="#7FBA00"/>
+              <rect x="2" y="13" width="9" height="9" fill="#00A4EF"/>
+              <rect x="13" y="13" width="9" height="9" fill="#FFB900"/>
+            </svg>
+            Outlook / Office 365 verbinden
+          </Button>
+        )}
+
         {integrations.length > 0 && (
           <Button
             variant="secondary"
@@ -260,9 +302,9 @@ export default function CalendarSettingsPage() {
       <Card className="bg-primary/5 border-primary/10">
         <p className="text-xs text-text-muted leading-relaxed">
           <strong>Hoe werkt het?</strong><br />
-          Na het koppelen worden je Google agenda-afspraken automatisch geïmporteerd.
-          De AI herkent opvangdagen en medische afspraken en maakt automatisch de juiste taken aan.
-          Synchronisatie loopt elke avond automatisch, of je tikt op &quot;Nu synchroniseren&quot;.
+          Na het koppelen worden je Google of Outlook agenda-afspraken automatisch geïmporteerd.
+          De AI herkent opvangdagen, medische afspraken, verjaardagen, daguitjes en vakanties — en maakt automatisch de juiste taken aan.
+          Afgeronde taken worden teruggeschreven naar je agenda. Synchronisatie loopt elke avond automatisch, of je tikt op &quot;Nu synchroniseren&quot;.
         </p>
       </Card>
     </div>

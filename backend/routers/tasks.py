@@ -1,7 +1,10 @@
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -260,6 +263,32 @@ async def complete_task(
     await db.refresh(task)
 
     publish_event(str(member.household_id), "task.updated", {"id": str(task.id)})
+
+    # Write-back: if task is linked to a calendar event, add a completion note
+    if task.linked_calendar_event_id:
+        from models.calendar import CalendarEvent
+        event_result = await db.execute(
+            select(CalendarEvent).where(CalendarEvent.id == task.linked_calendar_event_id)
+        )
+        linked_event = event_result.scalar_one_or_none()
+        if linked_event:
+            completed_at = datetime.now(timezone.utc)
+            if linked_event.source == "google":
+                from services.calendar.google_sync import write_task_completion_to_google
+                try:
+                    await write_task_completion_to_google(
+                        db, linked_event, task.title, member.display_name, completed_at
+                    )
+                except Exception as e:
+                    logger.warning(f"Google write-back failed for task {task.id}: {e}")
+            elif linked_event.source == "outlook":
+                from services.calendar.outlook_sync import write_task_completion_to_outlook
+                try:
+                    await write_task_completion_to_outlook(
+                        db, linked_event, task.title, member.display_name, completed_at
+                    )
+                except Exception as e:
+                    logger.warning(f"Outlook write-back failed for task {task.id}: {e}")
 
     return task
 

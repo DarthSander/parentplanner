@@ -59,6 +59,10 @@ class CalendarEventUpdate(BaseModel):
     all_day: bool | None = None
 
 
+# Outlook uses the same request shape as Google
+OutlookCallbackRequest = GoogleCallbackRequest
+
+
 class CalendarEventResponse(BaseModel):
     id: UUID
     household_id: UUID
@@ -71,6 +75,7 @@ class CalendarEventResponse(BaseModel):
     start_time: datetime
     end_time: datetime
     all_day: bool
+    event_type: str | None = None
     created_at: datetime
     updated_at: datetime
 

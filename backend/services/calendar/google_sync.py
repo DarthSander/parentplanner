@@ -296,6 +296,9 @@ async def sync_all_integrations(
     for integration in integrations:
         if integration.provider == "google":
             sync_result = await sync_google_calendar(db, integration, household_id, member_id)
+        elif integration.provider == "outlook":
+            from services.calendar.outlook_sync import sync_outlook_calendar
+            sync_result = await sync_outlook_calendar(db, integration, household_id, member_id)
         else:
             sync_result = {"created": 0, "updated": 0, "skipped": 0, "note": f"Provider {integration.provider} niet ondersteund"}
         sync_result["integration_id"] = str(integration.id)
@@ -303,3 +306,71 @@ async def sync_all_integrations(
         results.append(sync_result)
 
     return results
+
+
+async def write_task_completion_to_google(
+    db: AsyncSession,
+    event: "CalendarEvent",
+    task_title: str,
+    member_name: str,
+    completed_at: datetime,
+) -> bool:
+    """
+    Write a task-completion note back to the linked Google Calendar event description.
+    E.g. adds: "✓ Cadeau gekocht voor Sara — gedaan door Jan op 5 maart"
+
+    Returns True on success, False on failure.
+    """
+    from sqlalchemy import select as sa_select
+    from models.member import Member
+
+    # Find the Google integration for the event owner (member_id of the event)
+    if not event.member_id:
+        return False
+
+    result = await db.execute(
+        sa_select(CalendarIntegration).where(
+            CalendarIntegration.member_id == event.member_id,
+            CalendarIntegration.provider == "google",
+            CalendarIntegration.sync_enabled == True,
+        )
+    )
+    integration = result.scalar_one_or_none()
+    if not integration or not event.external_id:
+        return False
+
+    try:
+        access_token = await get_valid_access_token(db, integration)
+    except ValueError:
+        return False
+
+    note = (
+        f"✓ {task_title} — gedaan door {member_name} op "
+        f"{completed_at.strftime('%d %B %Y')}"
+    )
+
+    # Fetch current event description
+    async with httpx.AsyncClient() as client:
+        get_resp = await client.get(
+            f"{GOOGLE_CALENDAR_API}/calendars/{integration.external_calendar_id}/events/{event.external_id}",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        if get_resp.status_code != 200:
+            logger.warning(f"Could not fetch Google event {event.external_id}: {get_resp.status_code}")
+            return False
+
+        current = get_resp.json()
+        current_desc = current.get("description", "") or ""
+        new_desc = f"{current_desc}\n\n{note}".strip()
+
+        patch_resp = await client.patch(
+            f"{GOOGLE_CALENDAR_API}/calendars/{integration.external_calendar_id}/events/{event.external_id}",
+            headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+            json={"description": new_desc},
+        )
+        if patch_resp.status_code not in (200, 204):
+            logger.warning(f"Google event patch failed: {patch_resp.status_code}")
+            return False
+
+    logger.info(f"Write-back to Google Calendar event {event.external_id}: {note}")
+    return True

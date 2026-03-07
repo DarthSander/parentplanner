@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { useTaskStore, Task } from '@/store/tasks';
+import { useTaskStore } from '@/store/tasks';
 import AISuggestionBar from '@/components/ai/AISuggestionBar';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -23,10 +23,26 @@ interface CalendarEvent {
   end_time: string;
   all_day: boolean;
   member_id: string | null;
+  event_type: string | null;
+  source: string | null;
 }
 
-const DAYCARE_KEYWORDS = ['opvang', 'dagopvang', 'kinderopvang', 'creche', 'bso'];
-const MEDICAL_KEYWORDS = ['consultatieburo', 'huisarts', 'prikken', 'vaccinatie', 'dokter'];
+interface LinkedTask {
+  id: string;
+  title: string;
+  status: string;
+  due_date: string | null;
+  category: string;
+}
+
+const EVENT_TYPE_CONFIG: Record<string, { dot: string; label: string; hint: string }> = {
+  daycare: { dot: 'bg-accent', label: 'Opvang', hint: 'Luiertas ingepakt? Wisselkleding, eten, slaapzak?' },
+  medical: { dot: 'bg-warning', label: 'Medisch', hint: 'Zorgpasje mee? Vaccinatieboekje? Vragen voorbereid?' },
+  birthday: { dot: 'bg-pink-400', label: 'Verjaardag', hint: 'Cadeau al gekocht? Kaartje gestuurd?' },
+  trip: { dot: 'bg-blue-400', label: 'Daguitje', hint: 'Kaartjes geboekt? Eten ingepakt? Kleding gecheckt?' },
+  vacation: { dot: 'bg-purple-400', label: 'Vakantie', hint: 'Paklijst klaar? Paspoorten geldig? Verzekering geregeld?' },
+  other: { dot: 'bg-text-muted', label: '', hint: '' },
+};
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -35,6 +51,9 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [linkedTasks, setLinkedTasks] = useState<LinkedTask[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
   const { tasks } = useTaskStore();
 
   useEffect(() => {
@@ -44,28 +63,42 @@ export default function CalendarPage() {
     ]).finally(() => setLoading(false));
   }, []);
 
-  // Generate 14 days for the horizontal scroller
+  const openEventDetail = async (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setLinkedTasks([]);
+    setLoadingTasks(true);
+    try {
+      const { data } = await api.get(`/calendar/events/${event.id}/tasks`);
+      setLinkedTasks(data);
+    } catch {
+      setLinkedTasks([]);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  // Generate 21 days for the horizontal scroller
   const days = useMemo(() => {
     const result = [];
     const now = new Date();
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 21; i++) {
       const d = new Date(now);
       d.setDate(d.getDate() + i);
       const dateStr = d.toISOString().split('T')[0];
-      const eventCount = events.filter((e) => e.start_time.startsWith(dateStr)).length;
+      const eventsOnDay = events.filter((e) => e.start_time.startsWith(dateStr));
       result.push({
         date: d,
         dateStr,
         label: d.toLocaleDateString('nl-NL', { weekday: 'short' }),
         dayNum: d.getDate(),
         isToday: i === 0,
-        eventCount,
+        eventCount: eventsOnDay.length,
+        hasSpecial: eventsOnDay.some((e) => e.event_type && e.event_type !== 'other'),
       });
     }
     return result;
   }, [events]);
 
-  // Events for selected day
   const selectedEvents = useMemo(
     () => events
       .filter((e) => e.start_time.startsWith(selectedDate))
@@ -73,27 +106,17 @@ export default function CalendarPage() {
     [events, selectedDate]
   );
 
-  // Tasks for selected day
   const selectedTasks = useMemo(
-    () => tasks
-      .filter((t) => t.status !== 'done' && t.due_date?.startsWith(selectedDate)),
+    () => tasks.filter((t) => t.status !== 'done' && t.due_date?.startsWith(selectedDate)),
     [tasks, selectedDate]
   );
-
-  const getEventHint = (event: CalendarEvent): string | null => {
-    const lower = event.title.toLowerCase();
-    if (DAYCARE_KEYWORDS.some((kw) => lower.includes(kw))) {
-      return 'Luiertas ingepakt? Wisselkleding, eten, slaapzak?';
-    }
-    if (MEDICAL_KEYWORDS.some((kw) => lower.includes(kw))) {
-      return 'Vaccinatieboekje mee? Vragen voorbereid?';
-    }
-    return null;
-  };
 
   const selectedDateLabel = new Date(selectedDate).toLocaleDateString('nl-NL', {
     weekday: 'long', day: 'numeric', month: 'long',
   });
+
+  const getEventConfig = (event: CalendarEvent) =>
+    EVENT_TYPE_CONFIG[event.event_type || 'other'] || EVENT_TYPE_CONFIG.other;
 
   return (
     <div className="space-y-4">
@@ -112,7 +135,7 @@ export default function CalendarPage() {
 
       <AISuggestionBar page="calendar" maxItems={2} compact />
 
-      {/* Horizontal day scroller */}
+      {/* Horizontal day scroller — 21 days */}
       <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
         {days.map((day) => (
           <button
@@ -130,7 +153,7 @@ export default function CalendarPage() {
             <span className="text-sm font-semibold">{day.dayNum}</span>
             {day.eventCount > 0 && (
               <span className={`w-1.5 h-1.5 rounded-full ${
-                day.dateStr === selectedDate ? 'bg-white' : 'bg-accent'
+                day.dateStr === selectedDate ? 'bg-white' : day.hasSpecial ? 'bg-accent' : 'bg-text-muted/40'
               }`} />
             )}
           </button>
@@ -147,24 +170,35 @@ export default function CalendarPage() {
           <p className="text-sm text-text-muted text-center py-8">Niets gepland voor deze dag</p>
         ) : (
           <div className="space-y-2">
-            {/* Events */}
             {selectedEvents.map((event) => {
-              const hint = getEventHint(event);
+              const config = getEventConfig(event);
               return (
-                <Card key={event.id} padding="sm">
+                <Card
+                  key={event.id}
+                  padding="sm"
+                  className="cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => openEventDetail(event)}
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-accent shrink-0" />
+                        <span className={`w-2 h-2 rounded-full ${config.dot} shrink-0`} />
                         <p className="text-sm font-medium">{event.title}</p>
+                        {config.label && (
+                          <Badge variant="default" className="text-[10px] px-1.5 py-0.5">{config.label}</Badge>
+                        )}
+                        {event.source && event.source !== 'manual' && (
+                          <span className="text-[10px] text-text-muted bg-surface-alt px-1.5 py-0.5 rounded">
+                            {event.source === 'google' ? 'Google' : event.source === 'outlook' ? 'Outlook' : 'CalDAV'}
+                          </span>
+                        )}
                       </div>
                       {event.location && (
-                        <p className="text-xs text-text-muted ml-4">{event.location}</p>
+                        <p className="text-xs text-text-muted ml-4 mt-0.5">{event.location}</p>
                       )}
-                      {/* AI hint */}
-                      {hint && (
+                      {config.hint && (
                         <p className="text-xs text-primary mt-1 ml-4 bg-primary/5 px-2 py-1 rounded">
-                          {hint}
+                          {config.hint}
                         </p>
                       )}
                     </div>
@@ -184,12 +218,9 @@ export default function CalendarPage() {
               );
             })}
 
-            {/* Tasks for this day */}
             {selectedTasks.length > 0 && (
               <>
-                {selectedEvents.length > 0 && (
-                  <div className="border-t border-border my-2" />
-                )}
+                {selectedEvents.length > 0 && <div className="border-t border-border my-2" />}
                 <p className="text-xs font-medium text-text-muted uppercase tracking-wide">
                   Taken ({selectedTasks.length})
                 </p>
@@ -209,6 +240,100 @@ export default function CalendarPage() {
           </div>
         )}
       </div>
+
+      {/* Event Detail Panel */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setSelectedEvent(null)} />
+          <div className="relative bg-surface rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto p-4 space-y-4 shadow-lg">
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`w-3 h-3 rounded-full ${getEventConfig(selectedEvent).dot}`} />
+                  <h3 className="font-display font-semibold text-base">{selectedEvent.title}</h3>
+                  {getEventConfig(selectedEvent).label && (
+                    <Badge>{getEventConfig(selectedEvent).label}</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-text-muted mt-1">
+                  {selectedEvent.all_day
+                    ? 'Hele dag'
+                    : `${new Date(selectedEvent.start_time).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })} – ${new Date(selectedEvent.end_time).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}`}
+                  {selectedEvent.location && ` · ${selectedEvent.location}`}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="p-1 rounded-lg hover:bg-surface-alt transition-colors ml-2 shrink-0"
+              >
+                <svg className="w-5 h-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {selectedEvent.description && (
+              <p className="text-sm text-text-muted">{selectedEvent.description}</p>
+            )}
+
+            {getEventConfig(selectedEvent).hint && (
+              <div className="bg-primary/5 border border-primary/10 rounded-xl p-3">
+                <p className="text-xs font-medium text-primary">AI-tip</p>
+                <p className="text-sm text-text-main mt-0.5">{getEventConfig(selectedEvent).hint}</p>
+              </div>
+            )}
+
+            {/* Linked AI tasks */}
+            <div>
+              <p className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">
+                AI-taken voor dit event
+              </p>
+              {loadingTasks ? (
+                <p className="text-xs text-text-muted">Laden...</p>
+              ) : linkedTasks.length === 0 ? (
+                <p className="text-xs text-text-muted italic">
+                  Geen taken gekoppeld. De AI maakt automatisch taken aan bij het detecteren van dit soort afspraken.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {linkedTasks.map((t) => (
+                    <div
+                      key={t.id}
+                      className="flex items-center gap-2 p-2 bg-surface-alt rounded-lg"
+                    >
+                      <span
+                        className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                          t.status === 'done'
+                            ? 'bg-success border-success'
+                            : 'border-text-muted'
+                        }`}
+                      >
+                        {t.status === 'done' && (
+                          <svg className="w-3 h-3 text-white m-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className={`text-sm flex-1 ${t.status === 'done' ? 'line-through text-text-muted' : ''}`}>
+                        {t.title}
+                      </span>
+                      {t.due_date && (
+                        <span className="text-xs text-text-muted shrink-0">
+                          {new Date(t.due_date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  <p className="text-[10px] text-text-muted mt-1">
+                    Afgeronde taken worden automatisch teruggezet in je kalender.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
