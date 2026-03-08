@@ -67,7 +67,7 @@ async def analyze_patterns(db: AsyncSession, household_id: UUID):
     system_prompt = """
 Je analyseert gezinstaken en detecteert patronen. Geef een JSON array van patronen.
 Elk patroon heeft:
-- pattern_type: task_avoidance | task_affinity | inventory_rate | schedule_conflict | complementary_split | appliance_usage
+- pattern_type: task_avoidance | task_affinity | inventory_rate | schedule_conflict | complementary_split | appliance_usage | shopping_frequency | brand_affinity | seasonal_shopping
 - member_id: UUID string of null voor huishoudelijke patronen
 - description: Nederlandse beschrijving
 - confidence_score: 0.0 tot 1.0
@@ -79,6 +79,9 @@ Antwoord alleen met de JSON array.
 
     # Get appliance usage data
     appliance_lines = await _get_appliance_summary(db, household_id, since)
+
+    # Get Picknick shopping history
+    shopping_lines = await _get_picknick_shopping_summary(db, household_id, since)
 
     try:
         response = await call_claude(
@@ -92,6 +95,9 @@ VERLOPEN / UITGESTELDE TAKEN ({len(overdue_tasks)} totaal):
 
 APPARAATGEBRUIK (SmartThings):
 {chr(10).join(appliance_lines) if appliance_lines else "Geen SmartThings apparaten gekoppeld."}
+
+BOODSCHAPPENPATRONEN (Picknick orders):
+{chr(10).join(shopping_lines) if shopping_lines else "Geen Picknick-orders beschikbaar."}
 
 BESTAANDE CONTEXT:
 {chr(10).join(context_docs[:10])}
@@ -185,4 +191,37 @@ async def _get_appliance_summary(db: AsyncSession, household_id: UUID, since: da
         return lines
     except Exception as e:
         logger.warning(f"Failed to get appliance summary: {e}")
+        return []
+
+
+async def _get_picknick_shopping_summary(db: AsyncSession, household_id: UUID, since: datetime) -> list[str]:
+    """Build Picknick order history summary for pattern analysis."""
+    try:
+        from models.picknick import PicknickOrderHistory
+
+        result = await db.execute(
+            select(PicknickOrderHistory).where(
+                PicknickOrderHistory.household_id == household_id,
+                PicknickOrderHistory.order_date >= since,
+            ).order_by(PicknickOrderHistory.order_date.desc())
+        )
+        orders = result.scalars().all()
+
+        if not orders:
+            return []
+
+        lines = []
+        for order in orders:
+            date_str = order.order_date.strftime("%A %d %B") if order.order_date else "?"
+            price_str = f" (€{float(order.total_price):.2f})" if order.total_price else ""
+            items_str = ""
+            if order.items_json:
+                raw_items = order.items_json.get("items", []) if isinstance(order.items_json, dict) else []
+                names = [i.get("name", "") for i in raw_items[:6] if isinstance(i, dict) and i.get("name")]
+                items_str = f": {', '.join(names)}" if names else ""
+            lines.append(f"- Order {date_str}{price_str}{items_str}")
+
+        return lines
+    except Exception as e:
+        logger.warning(f"Failed to get Picknick shopping summary: {e}")
         return []

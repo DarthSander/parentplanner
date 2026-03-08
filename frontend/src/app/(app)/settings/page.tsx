@@ -14,6 +14,7 @@ const menuItems = [
   { href: '/settings/subscription', label: 'Abonnement', description: 'Plan en facturatie', permission: 'view_subscription' },
   { href: '/settings/calendar', label: 'Agenda koppelingen', description: 'Google Calendar en CalDAV koppelen', permission: null },
   { href: '/settings/smartthings', label: 'SmartThings', description: 'Slimme apparaten koppelen', permission: 'manage_settings' },
+  { href: '/settings/picknick', label: 'Picknick', description: 'Online boodschappen koppelen', permission: 'manage_settings' },
   { href: '/patterns', label: 'Patronen', description: 'AI-analyse van je gezin', permission: 'view_patterns' },
   { href: '/daycare', label: 'Opvang', description: 'Briefing instellingen', permission: 'manage_settings' },
 ];

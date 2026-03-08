@@ -22,6 +22,7 @@ export default function DashboardPage() {
   >([]);
   const [weekEvents, setWeekEvents] = useState<{ date: string; count: number }[]>([]);
   const [activeDevices, setActiveDevices] = useState<{ id: string; label: string; device_type: string; is_running: boolean; total_cycles: number }[]>([]);
+  const [picknickRecs, setPicknickRecs] = useState<{ urgent_count: number; connected: boolean }>({ urgent_count: 0, connected: false });
 
   useEffect(() => {
     fetchTasks();
@@ -30,6 +31,15 @@ export default function DashboardPage() {
     // Fetch week events for mini overview
     // Fetch SmartThings devices (ignore errors — feature may not be available)
     api.get('/smartthings/devices').then(({ data }) => setActiveDevices(data)).catch(() => {});
+    // Picknick status — check urgency without loading full recommendations
+    api.get('/picknick/status').then(({ data }) => {
+      if (data.connected) {
+        api.get('/picknick/recommendations').then(({ data: recs }) => {
+          const urgent = (recs.items || []).filter((i: any) => i.priority === 'urgent').length;
+          setPicknickRecs({ urgent_count: urgent, connected: true });
+        }).catch(() => setPicknickRecs({ urgent_count: 0, connected: true }));
+      }
+    }).catch(() => {});
     api.get('/calendar/events').then(({ data }) => {
       const counts: Record<string, number> = {};
       for (const e of data) {
@@ -182,6 +192,33 @@ export default function DashboardPage() {
             })}
           </div>
         </Card>
+      )}
+
+      {/* Picknick shopping widget */}
+      {picknickRecs.connected && (
+        <button
+          onClick={() => router.push('/shopping')}
+          className="w-full text-left"
+        >
+          <Card className={picknickRecs.urgent_count > 0 ? 'bg-primary/5 border-primary/20' : ''}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🛒</span>
+                <div>
+                  <p className="text-sm font-medium">Boodschappen</p>
+                  <p className="text-xs text-text-muted">
+                    {picknickRecs.urgent_count > 0
+                      ? `${picknickRecs.urgent_count} item(s) dringend nodig`
+                      : 'Bekijk aanbevelingen'}
+                  </p>
+                </div>
+              </div>
+              <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </Card>
+        </button>
       )}
 
       {/* Today's tasks */}

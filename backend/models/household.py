@@ -23,3 +23,4 @@ class Household(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     daycare_contacts = relationship("DaycareContact", back_populates="household", cascade="all, delete-orphan")
     smartthings_integrations = relationship("SmartThingsIntegration", back_populates="household", cascade="all, delete-orphan")
     smartthings_devices = relationship("SmartThingsDevice", back_populates="household", cascade="all, delete-orphan")
+    picknick_integration = relationship("PicknickIntegration", back_populates="household", uselist=False, cascade="all, delete-orphan")

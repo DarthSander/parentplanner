@@ -33,4 +33,8 @@ CELERYBEAT_SCHEDULE = {
         "task": "workers.tasks.smartthings_sync.sync_all",
         "schedule": crontab(minute="*/5"),
     },
+    "picknick-order-sync-daily": {
+        "task": "workers.tasks.picknick_sync.sync_orders",
+        "schedule": crontab(hour=8, minute=0),
+    },
 }

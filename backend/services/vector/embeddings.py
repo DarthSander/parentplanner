@@ -100,3 +100,35 @@ def build_device_event_document(event, device) -> str:
             parts.append(f"Duur: {duration} minuten")
 
     return ". ".join(parts)
+
+
+def build_picknick_list_document(shopping_list, items: list) -> str:
+    """Build text document for a Picknick shopping list (for vector memory)."""
+    item_names = [f"{float(i.quantity):.0f}x {i.name}" for i in items]
+    status = shopping_list.status if isinstance(shopping_list.status, str) else shopping_list.status.value
+    parts = [
+        f"Boodschappenlijst: {shopping_list.name}",
+        f"Status: {status}",
+        f"Aangemaakt: {shopping_list.created_at.strftime('%A %d %B %Y')}",
+        f"Producten: {', '.join(item_names) if item_names else 'leeg'}",
+    ]
+    if shopping_list.ai_generated:
+        parts.append("Door AI gegenereerd.")
+    return ". ".join(parts)
+
+
+def build_picknick_order_document(order) -> str:
+    """Build text document for a Picknick order history entry."""
+    parts = [f"Picknick bestelling {order.picknick_order_id}"]
+    if order.order_date:
+        parts.append(f"Besteld op: {order.order_date.strftime('%A %d %B %Y')}")
+    if order.delivery_date:
+        parts.append(f"Bezorgd op: {order.delivery_date.strftime('%A %d %B %Y')}")
+    if order.total_price:
+        parts.append(f"Totaalbedrag: \u20ac{float(order.total_price):.2f}")
+    if order.items_json:
+        raw_items = order.items_json.get("items", []) if isinstance(order.items_json, dict) else []
+        names = [i.get("name", "") for i in raw_items[:10] if isinstance(i, dict)]
+        if names:
+            parts.append(f"Producten: {', '.join(names)}")
+    return ". ".join(parts)

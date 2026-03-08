@@ -34,7 +34,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Routers
 from routers import (  # noqa: E402
     account, ai, auth, calendar, chat, health, households, inventory,
-    members, notifications, onboarding, patterns,
+    members, notifications, onboarding, patterns, picknick,
     smartthings, sse, subscriptions, sync, tasks, webhooks,
 )
 
@@ -53,6 +53,7 @@ app.include_router(subscriptions.router, prefix="/subscriptions", tags=["subscri
 app.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 app.include_router(sync.router, prefix="/sync", tags=["sync"])
 app.include_router(smartthings.router, prefix="/smartthings", tags=["smartthings"])
+app.include_router(picknick.router, prefix="/picknick", tags=["picknick"])
 app.include_router(account.router, prefix="/account", tags=["account"])
 app.include_router(ai.router, prefix="/ai", tags=["ai"])
 app.include_router(sse.router, prefix="/sse", tags=["sse"])
