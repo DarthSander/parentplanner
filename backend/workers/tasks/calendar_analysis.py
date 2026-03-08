@@ -18,7 +18,7 @@ async def _run():
     from core.database import get_db_context
     from models.household import Household
     from models.subscription import Subscription
-    from services.ai.context_engine import process_upcoming_events
+    from services.ai.context_engine import process_appliance_events, process_upcoming_events
 
     async with get_db_context() as db:
         # Only process households with active AI features
@@ -38,3 +38,9 @@ async def _run():
                 logger.info(f"Calendar analysis completed for household {hid}")
             except Exception as e:
                 logger.error(f"Calendar analysis failed for household {hid}: {e}")
+
+            # Also analyze SmartThings appliance events
+            try:
+                await process_appliance_events(db, hid)
+            except Exception as e:
+                logger.error(f"Appliance analysis failed for household {hid}: {e}")

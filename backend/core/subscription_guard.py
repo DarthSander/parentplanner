@@ -18,6 +18,7 @@ TIER_FEATURES = {
         "daycare_briefing": False,
         "whatsapp_briefing": False,
         "partner_escalation": False,
+        "smartthings": False,
     },
     "standard": {
         "max_members": 4,
@@ -31,6 +32,7 @@ TIER_FEATURES = {
         "daycare_briefing": False,
         "whatsapp_briefing": False,
         "partner_escalation": False,
+        "smartthings": False,
     },
     "family": {
         "max_members": None,
@@ -44,6 +46,7 @@ TIER_FEATURES = {
         "daycare_briefing": True,
         "whatsapp_briefing": True,
         "partner_escalation": True,
+        "smartthings": True,
     },
 }
 

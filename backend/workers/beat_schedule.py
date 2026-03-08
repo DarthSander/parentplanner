@@ -29,4 +29,8 @@ CELERYBEAT_SCHEDULE = {
         "task": "workers.tasks.notification_sender.update_response_rates",
         "schedule": crontab(hour=4, minute=0),
     },
+    "smartthings-device-sync": {
+        "task": "workers.tasks.smartthings_sync.sync_all",
+        "schedule": crontab(minute="*/5"),
+    },
 }

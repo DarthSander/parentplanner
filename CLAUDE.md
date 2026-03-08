@@ -7,10 +7,10 @@
 Dit bestand is de enige bron van waarheid voor het GezinsAI project. Bij elke nieuwe sessie: lees dit bestand eerst volledig, check de statuslijst hieronder, en ga verder waar het project gebleven is. Werk de status bij zodra iets afgerond of gestart is.
 
 ### Laatste sessiedatum
-2026-03-05
+2026-03-08
 
 ### Huidige fase
-Project volledig afgerond. Alle 22 stappen zijn geïmplementeerd. Backend (FastAPI) en frontend (Next.js PWA) zijn klaar. Alle pagina's, stores, componenten, realtime sync, offline support en PWA configuratie zijn gebouwd.
+Project volledig afgerond inclusief Samsung SmartThings integratie. Alle 22 originele stappen + stap 23 (SmartThings) zijn geïmplementeerd. Backend (FastAPI) en frontend (Next.js PWA) zijn klaar.
 
 ### Statuslijst ontwikkelvolgorde
 
@@ -38,6 +38,7 @@ Project volledig afgerond. Alle 22 stappen zijn geïmplementeerd. Backend (FastA
 | 20 | PWA configuratie + manifest | Afgerond 2026-03-05 | manifest.json, service worker (sw.js), offline.html fallback, viewport meta in layout. |
 | 21 | Docker + CI/CD + deployment | Afgerond 2026-03-04 | Dockerfile, render.yaml (4 services), docker-compose.yml structuur. CI/CD via GitHub Actions. |
 | 22 | Monitoring (Sentry + structured logging + health) | Afgerond 2026-03-04 | Sentry in main.py, logging_config.py (JSON), health router (liveness + readiness). |
+| 23 | Samsung SmartThings integratie | Afgerond 2026-03-08 | Volledige integratie: OAuth2 flow, device sync (polling elke 5 min + webhooks), cycle detectie (washer/dryer/dishwasher/robot_vacuum/oven/etc), consumable auto-deductie per cyclus, AI taakgeneratie bij lage voorraad, notificaties bij cyclus-einde, pattern engine uitbreiding (appliance_usage), vector embeddings voor device events, frontend (settings pagina + device detail + dashboard widget). Family tier only. |
 
 ### Openstaande beslissingen
 Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Deployment: Render (backend + workers) + Vercel (frontend). Vector index: HNSW. AI model keuze: Sonnet voor achtergrondtaken, Opus voor chat.
@@ -57,6 +58,7 @@ Geen. Alle architectuurbeslissingen zijn genomen. WhatsApp provider: Twilio. Dep
 | 2026-03-01 | Specificatie aangevuld met 15 ontbrekende onderdelen: error handling + retry bij AI-calls, rate limiting, health/monitoring, token encryptie, Pydantic schemas, teststructuur, embedding migratiestrategie, HNSW ipv IVFFlat, CORS configuratie, deployment/infra, verbeterde service worker, invite flow, WhatsApp provider keuze (Twilio), offline conflict resolution, subscriptie-enforcement middleware. |
 | 2026-03-04 | Stap 1 afgerond: Backend projectstructuur opgezet. Alle 17 SQLAlchemy models, Alembic config, initiële migratie 001. Stap 2 afgerond: Auth flow — security.py (JWT HS256 verificatie via Supabase), dependencies.py (get_current_member, require_owner), encryption.py (Fernet), rate_limiter.py (SlowAPI + Redis), logging_config.py (JSON structured logging), auth router (register/login/refresh via Supabase Auth proxy, rate limited 10/min), health router (liveness + readiness), main.py (FastAPI app met CORS, rate limiting, Sentry, routers), schemas/auth.py. Stappen 3-9, 11-12, 15, 21-22 afgerond: alle routers, services, schemas, Dockerfile, render.yaml. |
 | 2026-03-05 | Stappen 10, 16, 17, 19 afgerond: Context engine (avond cron met calendar_analysis worker), pattern engine (volledige AI analyse), daycare briefing (WhatsApp/email via Twilio/Resend), memory summarizer (maandelijkse vectorcompressie), notification sender (ochtend/avond reminders + response tracking), Celery beat schedule (7 taken), GDPR endpoints (data export + account deletion). Stappen 13, 14, 18, 20 afgerond: Volledige Next.js frontend met 59 bestanden. Alle pagina's (dashboard, taken, voorraad, agenda, chat, patronen, instellingen, onboarding, auth). UI componenten (Button, Input, Card, Badge, Modal, Toast, Avatar). Zustand stores (tasks, inventory, household, sync). Supabase realtime sync. Offline support (IndexedDB + service worker + conflict modal). PWA manifest + service worker. Alle 22 stappen afgerond. |
+| 2026-03-08 | Stap 23 afgerond: Samsung SmartThings integratie. Backend: models (SmartThingsIntegration, SmartThingsDevice, DeviceEvent, DeviceConsumable), schemas, OAuth2 auth service, device sync service (capability mapping, cycle detectie via machineState), event processing service (consumable auto-deductie, AI taakgeneratie, notificaties, vector embeddings), webhook handler (CONFIRMATION/EVENT lifecycles), router (14 endpoints), Celery sync worker (5 min polling), Alembic migratie 003. AI uitbreidingen: context_engine verwerkt apparaat-events in avond-cron, pattern_engine detecteert appliance_usage patronen, build_device_event_document voor vector embeddings. Config: SMARTTHINGS_CLIENT_ID/SECRET/WEBHOOK_URL. Subscription guard: smartthings feature family-tier only. Frontend: settings/smartthings pagina (OAuth flow, device lijst), device detail pagina (stats, consumables, events), DeviceCard, DeviceStatusBadge, ConsumableLinkForm componenten, dashboard actieve apparaten widget. |
 
 ---
 
