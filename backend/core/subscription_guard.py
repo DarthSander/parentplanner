@@ -19,6 +19,7 @@ TIER_FEATURES = {
         "whatsapp_briefing": False,
         "partner_escalation": False,
         "smartthings": False,
+        "picknick": False,
     },
     "standard": {
         "max_members": 4,
@@ -33,6 +34,7 @@ TIER_FEATURES = {
         "whatsapp_briefing": False,
         "partner_escalation": False,
         "smartthings": False,
+        "picknick": False,
     },
     "family": {
         "max_members": None,
@@ -47,6 +49,7 @@ TIER_FEATURES = {
         "whatsapp_briefing": True,
         "partner_escalation": True,
         "smartthings": True,
+        "picknick": True,
     },
 }
 

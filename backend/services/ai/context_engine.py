@@ -102,6 +102,9 @@ async def process_upcoming_events(db: AsyncSession, household_id: UUID):
 
     await db.commit()
 
+    # Picknick shopping suggestions based on all collected context
+    await _suggest_picknick_shopping(db, household_id)
+
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -543,3 +546,55 @@ Antwoord alleen met de JSON array.
     if tasks_data:
         await db.commit()
         logger.info(f"Appliances: {len(tasks_data)} tasks for household {household_id}")
+
+
+# ── Picknick Shopping Suggestions (evening cron) ──────────────────────────────
+
+async def _suggest_picknick_shopping(db: AsyncSession, household_id: UUID):
+    """
+    Check if the household has an active Picknick integration and proactively
+    add a chat message when the AI detects items that should be ordered.
+    This runs as part of the evening cron (context_engine).
+    """
+    try:
+        from models.picknick import PicknickIntegration
+        from services.picknick.recommendations import generate_shopping_recommendations
+
+        integration_result = await db.execute(
+            select(PicknickIntegration).where(
+                PicknickIntegration.household_id == household_id,
+                PicknickIntegration.sync_enabled == True,
+            )
+        )
+        integration = integration_result.scalar_one_or_none()
+        if not integration:
+            return
+
+        items, context_summary = await generate_shopping_recommendations(db, household_id)
+        urgent_items = [i for i in items if i.priority == "urgent"]
+
+        if not urgent_items:
+            return
+
+        # Find the household owner to address the chat message to
+        from models.member import Member
+        member_result = await db.execute(
+            select(Member).where(
+                Member.household_id == household_id,
+                Member.role.in_(["owner", "partner"]),
+            ).limit(1)
+        )
+        member = member_result.scalar_one_or_none()
+        if not member:
+            return
+
+        item_lines = "\n".join(f"- {i.name} ({i.reason})" for i in urgent_items[:5])
+        await _post_chat_message(
+            db, household_id, member.id,
+            f"🛒 **Boodschappen nodig!** Ik zie {len(urgent_items)} urgente item(s) die besteld moeten worden via Picknick:\n\n"
+            f"{item_lines}\n\n"
+            "Wil je dat ik een boodschappenlijst aanmaak? Ga naar **Boodschappen** om de lijst te bekijken en in één klik naar Picknick te sturen.",
+        )
+        logger.info(f"Picknick: {len(urgent_items)} urgent shopping suggestions added to chat for household {household_id}")
+    except Exception as e:
+        logger.warning(f"Picknick shopping suggestion failed for household {household_id}: {e}")
