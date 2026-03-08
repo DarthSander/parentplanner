@@ -18,6 +18,7 @@ class PatternType(str, enum.Enum):
     inventory_rate = "inventory_rate"
     schedule_conflict = "schedule_conflict"
     complementary_split = "complementary_split"
+    appliance_usage = "appliance_usage"
 
 
 class Pattern(UUIDPrimaryKeyMixin, Base):

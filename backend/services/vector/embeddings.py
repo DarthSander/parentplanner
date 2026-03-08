@@ -62,3 +62,41 @@ def build_inventory_document(item) -> str:
             else ""
         )
     )
+
+
+def build_device_event_document(event, device) -> str:
+    """Build text document for a SmartThings device event."""
+    device_labels = {
+        "washer": "Wasmachine",
+        "dryer": "Droger",
+        "dishwasher": "Vaatwasser",
+        "robot_vacuum": "Robotstofzuiger",
+        "refrigerator": "Koelkast",
+        "oven": "Oven",
+        "air_purifier": "Luchtreiniger",
+    }
+    device_label = device_labels.get(device.device_type.value if hasattr(device.device_type, 'value') else device.device_type, device.label)
+
+    event_labels = {
+        "cycle_started": "cyclus gestart",
+        "cycle_completed": "cyclus afgerond",
+        "door_opened": "deur geopend",
+        "door_closed": "deur gesloten",
+        "error": "fout opgetreden",
+        "filter_alert": "filter melding",
+    }
+    event_label = event_labels.get(event.event_type.value if hasattr(event.event_type, 'value') else event.event_type, str(event.event_type))
+
+    parts = [
+        f"Apparaat: {device_label} ({device.label})",
+        f"Gebeurtenis: {event_label}",
+        f"Datum: {event.created_at.strftime('%A %d %B %Y om %H:%M')}",
+        f"Totaal aantal cycli: {device.total_cycles}",
+    ]
+
+    if event.event_data:
+        duration = event.event_data.get("duration_minutes")
+        if duration:
+            parts.append(f"Duur: {duration} minuten")
+
+    return ". ".join(parts)

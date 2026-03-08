@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     MICROSOFT_CLIENT_ID: str = ""
     MICROSOFT_CLIENT_SECRET: str = ""
+    SMARTTHINGS_CLIENT_ID: str = ""
+    SMARTTHINGS_CLIENT_SECRET: str = ""
+    SMARTTHINGS_WEBHOOK_URL: str = ""
     JWT_SECRET: str = "change-me-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30

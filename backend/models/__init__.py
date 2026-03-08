@@ -12,6 +12,12 @@ from models.vector import VectorDocument
 from models.subscription import Subscription
 from models.daycare import DaycareContact
 from models.sync import SyncQueueItem
+from models.smartthings import (
+    SmartThingsIntegration,
+    SmartThingsDevice,
+    DeviceEvent,
+    DeviceConsumable,
+)
 
 __all__ = [
     "Base",
@@ -32,4 +38,8 @@ __all__ = [
     "Subscription",
     "DaycareContact",
     "SyncQueueItem",
+    "SmartThingsIntegration",
+    "SmartThingsDevice",
+    "DeviceEvent",
+    "DeviceConsumable",
 ]

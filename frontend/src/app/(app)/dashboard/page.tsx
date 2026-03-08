@@ -21,12 +21,15 @@ export default function DashboardPage() {
     { member_id: string; display_name: string; completed_count: number; open_count: number; percentage: number }[]
   >([]);
   const [weekEvents, setWeekEvents] = useState<{ date: string; count: number }[]>([]);
+  const [activeDevices, setActiveDevices] = useState<{ id: string; label: string; device_type: string; is_running: boolean; total_cycles: number }[]>([]);
 
   useEffect(() => {
     fetchTasks();
     fetchItems();
     api.get('/tasks/distribution').then(({ data }) => setDistribution(data)).catch(() => {});
     // Fetch week events for mini overview
+    // Fetch SmartThings devices (ignore errors — feature may not be available)
+    api.get('/smartthings/devices').then(({ data }) => setActiveDevices(data)).catch(() => {});
     api.get('/calendar/events').then(({ data }) => {
       const counts: Record<string, number> = {};
       for (const e of data) {
@@ -154,6 +157,29 @@ export default function DashboardPage() {
                 <span className="text-xs text-danger shrink-0 ml-2">op</span>
               </div>
             ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Active SmartThings devices */}
+      {activeDevices.filter((d) => d.is_running).length > 0 && (
+        <Card className="bg-accent/5 border-accent/20">
+          <h3 className="text-sm font-semibold mb-1.5 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+            Apparaten actief
+          </h3>
+          <div className="space-y-1">
+            {activeDevices.filter((d) => d.is_running).map((d) => {
+              const labels: Record<string, string> = {
+                washer: 'Wasmachine draait', dryer: 'Droger draait',
+                dishwasher: 'Vaatwasser draait', robot_vacuum: 'Robotstofzuiger zuigt',
+              };
+              return (
+                <p key={d.id} className="text-xs text-text-muted">
+                  {labels[d.device_type] || `${d.label} is actief`}
+                </p>
+              );
+            })}
           </div>
         </Card>
       )}

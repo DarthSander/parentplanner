@@ -83,3 +83,33 @@ async def calendar_webhook(
                     logger.error(f"Webhook-triggered sync failed: {e}")
 
     return {"received": True}
+
+
+@router.post("/smartthings")
+async def smartthings_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Handle Samsung SmartThings webhook events.
+
+    SmartThings sends lifecycle events (CONFIRMATION, CONFIGURATION,
+    INSTALL, UPDATE, UNINSTALL, EVENT) to this endpoint.
+    No auth required — SmartThings verifies via CONFIRMATION lifecycle.
+    """
+    try:
+        payload = await request.json()
+    except Exception:
+        return {"statusCode": 400}
+
+    lifecycle = payload.get("lifecycle", "unknown")
+    logger.info(f"SmartThings webhook: lifecycle={lifecycle}")
+
+    from services.smartthings.webhooks import handle_smartthings_webhook
+
+    try:
+        result = await handle_smartthings_webhook(db, payload)
+        return result
+    except Exception as e:
+        logger.error(f"SmartThings webhook processing failed: {e}", exc_info=True)
+        return {"statusCode": 200}

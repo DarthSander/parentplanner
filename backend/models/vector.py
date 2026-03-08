@@ -19,6 +19,7 @@ class VectorSourceType(str, enum.Enum):
     pattern = "pattern"
     onboarding_answer = "onboarding_answer"
     summary = "summary"
+    device_event = "device_event"
 
 
 class VectorDocument(UUIDPrimaryKeyMixin, Base):

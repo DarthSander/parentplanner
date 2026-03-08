@@ -7,6 +7,7 @@ Processes upcoming calendar events and generates smart tasks per event type:
   - birthday   → cadeau kopen, kaartje sturen
   - trip       → daguitje paklijst, weersverwachting, wie gaat er mee?
   - vacation   → volledige reisvoorbereiding gespreid over weken
+  - appliances → was ophangen, vaatwasser uitruimen, vergeten-was herinnering
 """
 import json
 import logging
@@ -393,3 +394,152 @@ Antwoord alleen met de JSON array.
             actions=actions,
         )
     logger.info(f"Vacation: {len(tasks_data)} tasks for '{event.title}' (household {household_id})")
+
+
+# ── SmartThings Appliance Analysis ───────────────────────────────────────────
+
+async def process_appliance_events(db: AsyncSession, household_id: UUID):
+    """
+    Analyze today's SmartThings device events and generate smart tasks.
+
+    Called from the evening cron alongside calendar event processing.
+    Generates tasks like:
+    - "Was ophangen/opvouwen" when washer cycle completed
+    - "Vaatwasser uitruimen" when dishwasher cycle completed
+    - "Wasmiddel op boodschappenlijst" when consumables are running low
+    - "Vergeten was" reminders (cycle completed > 30 min ago, no follow-up)
+    """
+    from sqlalchemy import func
+
+    from models.inventory import InventoryItem
+    from models.smartthings import (
+        DeviceConsumable,
+        DeviceEvent,
+        DeviceEventType,
+        SmartThingsDevice,
+    )
+
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Get today's cycle completions
+    events_result = await db.execute(
+        select(DeviceEvent)
+        .join(SmartThingsDevice)
+        .where(
+            DeviceEvent.household_id == household_id,
+            DeviceEvent.event_type == DeviceEventType.cycle_completed,
+            DeviceEvent.created_at >= today_start,
+        )
+    )
+    today_events = events_result.scalars().all()
+
+    if not today_events:
+        return
+
+    # Get all devices for this household
+    devices_result = await db.execute(
+        select(SmartThingsDevice).where(SmartThingsDevice.household_id == household_id)
+    )
+    devices = {d.id: d for d in devices_result.scalars().all()}
+
+    # Build device activity summary for AI
+    device_summary_lines = []
+    for event in today_events:
+        device = devices.get(event.device_id)
+        if not device:
+            continue
+        duration = event.event_data.get("duration_minutes", "?") if event.event_data else "?"
+        device_summary_lines.append(
+            f"- {device.label} ({device.device_type.value}): cyclus afgerond om "
+            f"{event.created_at.strftime('%H:%M')} (duur: {duration} min)"
+        )
+
+    # Get consumable status for devices
+    consumable_lines = []
+    for device_id, device in devices.items():
+        consumables_result = await db.execute(
+            select(DeviceConsumable).where(DeviceConsumable.device_id == device_id)
+        )
+        for consumable in consumables_result.scalars():
+            item_result = await db.execute(
+                select(InventoryItem).where(InventoryItem.id == consumable.inventory_item_id)
+            )
+            item = item_result.scalar_one_or_none()
+            if item:
+                cycles_remaining = (
+                    int(float(item.current_quantity) / float(consumable.usage_per_cycle))
+                    if consumable.usage_per_cycle
+                    else 0
+                )
+                consumable_lines.append(
+                    f"- {item.name}: nog {item.current_quantity} {item.unit} "
+                    f"(~{cycles_remaining} beurten), gekoppeld aan {device.label}"
+                )
+
+    context_docs = await retrieve_context(
+        db, household_id,
+        "apparaten was droger vaatwasser voorraad wasmiddel",
+        top_k=8,
+    )
+
+    system_prompt = f"""
+Je bent de gezinsassistent. Analyseer de apparaatactiviteit van vandaag en maak eventueel taken aan.
+
+REGELS:
+- Als de wasmachine klaar is: maak een "Was ophangen of in de droger" taak (quick, 10 min)
+- Als de droger klaar is: maak een "Was opvouwen en opruimen" taak (quick, 15 min)
+- Als de vaatwasser klaar is: maak een "Vaatwasser uitruimen" taak (quick, 10 min)
+- Als verbruiksartikelen bijna op zijn (< 5 beurten over): maak een boodschappentaak
+- Maak GEEN dubbele taken als er vandaag al een soortgelijke taak is
+
+APPARAAT ACTIVITEIT VANDAAG:
+{chr(10).join(device_summary_lines)}
+
+VERBRUIKSARTIKELEN STATUS:
+{chr(10).join(consumable_lines) if consumable_lines else "Geen verbruiksartikelen gekoppeld."}
+
+GEZINSCONTEXT:
+{chr(10).join(context_docs[:6])}
+
+Genereer een JSON array van taken (kan leeg zijn als er geen actie nodig is).
+Elk object: title, description, category, task_type, estimated_minutes, due_date (ISO vandaag 21:00).
+Antwoord alleen met de JSON array.
+"""
+
+    try:
+        response = await call_claude(
+            system=system_prompt,
+            user_message=f"Datum: {now.strftime('%A %d %B %Y')}. Tijd: {now.strftime('%H:%M')}.",
+            max_tokens=800,
+        )
+        tasks_data = validate_json_list(response, AIGeneratedTask)
+    except AICallError as e:
+        logger.error(f"Appliance tasks failed for {household_id}: {e}")
+        return
+
+    for item in tasks_data:
+        # Check for existing similar open task
+        existing = await db.execute(
+            select(Task).where(
+                Task.household_id == household_id,
+                Task.title == item.title,
+                Task.status.in_(["open", "in_progress"]),
+            )
+        )
+        if not existing.scalar_one_or_none():
+            task = Task(
+                household_id=household_id,
+                title=item.title,
+                description=item.description,
+                category=item.category or "household",
+                task_type=item.task_type or "quick",
+                estimated_minutes=item.estimated_minutes,
+                due_date=datetime.fromisoformat(item.due_date) if item.due_date else None,
+                ai_generated=True,
+            )
+            db.add(task)
+
+    if tasks_data:
+        await db.commit()
+        logger.info(f"Appliances: {len(tasks_data)} tasks for household {household_id}")

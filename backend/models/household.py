@@ -21,3 +21,5 @@ class Household(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     patterns = relationship("Pattern", back_populates="household", cascade="all, delete-orphan")
     vector_documents = relationship("VectorDocument", back_populates="household", cascade="all, delete-orphan")
     daycare_contacts = relationship("DaycareContact", back_populates="household", cascade="all, delete-orphan")
+    smartthings_integrations = relationship("SmartThingsIntegration", back_populates="household", cascade="all, delete-orphan")
+    smartthings_devices = relationship("SmartThingsDevice", back_populates="household", cascade="all, delete-orphan")
